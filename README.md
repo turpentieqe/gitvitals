@@ -6,6 +6,8 @@
 
 Analyzes **any** Git repo and generates a beautiful, interactive dashboard as a **single, self-contained HTML file**. 100% offline. Zero dependencies. **Never reads your source code.**
 
+[![CI](https://github.com/turpentieqe/gitvitals/actions/workflows/ci.yml/badge.svg)](https://github.com/turpentieqe/gitvitals/actions/workflows/ci.yml)
+[![Live Demo](https://img.shields.io/badge/live-demo-22d3ee.svg)](https://turpentieqe.github.io/gitvitals/demo.html)
 [![npm version](https://img.shields.io/npm/v/gitvitals.svg?color=cb3837&label=npm)](https://www.npmjs.com/package/gitvitals)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933.svg)](https://nodejs.org)
@@ -15,6 +17,8 @@ Analyzes **any** Git repo and generates a beautiful, interactive dashboard as a 
 ```bash
 npx gitvitals
 ```
+
+**[▶ Open the live demo](https://turpentieqe.github.io/gitvitals/demo.html)** — a real report, no install required.
 
 <img src="docs/demo.png" alt="GitVitals dashboard" width="100%">
 
@@ -122,7 +126,7 @@ npx gitvitals
 npm install -g gitvitals
 
 # From source
-git clone <this-repo> && cd gitvitals
+git clone https://github.com/turpentieqe/gitvitals.git && cd gitvitals
 node bin/gitvitals.js /path/to/repo
 ```
 
