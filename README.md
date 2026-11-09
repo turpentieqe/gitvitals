@@ -8,14 +8,14 @@ Analyzes **any** Git repo and generates a beautiful, interactive dashboard as a 
 
 [![CI](https://github.com/turpentieqe/gitvitals/actions/workflows/ci.yml/badge.svg)](https://github.com/turpentieqe/gitvitals/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/live-demo-22d3ee.svg)](https://turpentieqe.github.io/gitvitals/demo.html)
-[![npm version](https://img.shields.io/npm/v/gitvitals.svg?color=cb3837&label=npm)](https://www.npmjs.com/package/gitvitals)
+[![Release](https://img.shields.io/github/v/release/turpentieqe/gitvitals.svg?color=22d3ee&label=release)](https://github.com/turpentieqe/gitvitals/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933.svg)](https://nodejs.org)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](package.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](#contributing)
 
 ```bash
-npx gitvitals
+npx github:turpentieqe/gitvitals
 ```
 
 **[▶ Open the live demo](https://turpentieqe.github.io/gitvitals/demo.html)** — a real report, no install required.
@@ -32,7 +32,7 @@ GitVitals reads your Git history and file metadata, then hands you a **shareable
 
 > **"Your bus factor is 1."** — GitVitals tells you the uncomfortable truths about your repo, beautifully.
 
-No servers. No accounts. No `pip install` of a scientific stack. No sending your code anywhere. Just `npx gitvitals` and one HTML file you can email, commit, or host.
+No servers. No accounts. No `pip install` of a scientific stack. No sending your code anywhere. Just `npx github:turpentieqe/gitvitals` and one HTML file you can email, commit, or host.
 
 ## ✨ Why GitVitals?
 
@@ -71,16 +71,16 @@ You can open the report on a plane, commit it to your repo, or hand it to your s
 
 ```bash
 # Analyze the repo in the current directory
-npx gitvitals
+npx github:turpentieqe/gitvitals
 
 # Analyze a specific repo and open the report
-npx gitvitals ~/code/my-app --open
+npx github:turpentieqe/gitvitals ~/code/my-app --open
 
 # Save to a custom path, last year only
-npx gitvitals . --out reports/my-app.html --since "1 year ago"
+npx github:turpentieqe/gitvitals . --out reports/my-app.html --since "1 year ago"
 
 # Machine-readable output
-npx gitvitals . --json > vitals.json
+npx github:turpentieqe/gitvitals . --json > vitals.json
 ```
 
 The report is written to `gitvitals-report.html` by default.
@@ -120,10 +120,10 @@ Grades: **A+** ≥ 90 · **A** ≥ 80 · **B** ≥ 70 · **C** ≥ 60 · **D** �
 
 ```bash
 # Run without installing (recommended)
-npx gitvitals
+npx github:turpentieqe/gitvitals
 
-# Or install globally
-npm install -g gitvitals
+# Or install globally (from GitHub)
+npm install -g github:turpentieqe/gitvitals
 
 # From source
 git clone https://github.com/turpentieqe/gitvitals.git && cd gitvitals
