@@ -1,0 +1,43 @@
+{
+  "name": "gitvitals",
+  "version": "1.0.0",
+  "description": "Your repository's health report in one command. GitVitals analyzes any Git repo and generates a beautiful, self-contained, shareable interactive HTML dashboard — 100% offline, zero dependencies, never reads your source code.",
+  "type": "module",
+  "bin": {
+    "gitvitals": "bin/gitvitals.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node bin/gitvitals.js",
+    "demo": "node scripts/make-demo.mjs && node bin/gitvitals.js demo-app --out demo-report.html --no-open",
+    "test": "node test/smoke.mjs"
+  },
+  "keywords": [
+    "git",
+    "analytics",
+    "dashboard",
+    "visualization",
+    "cli",
+    "repository",
+    "statistics",
+    "bus-factor",
+    "hotspots",
+    "local-first",
+    "offline",
+    "developer-tools",
+    "git-log",
+    "code-quality",
+    "treemap",
+    "heatmap",
+    "health-score"
+  ],
+  "license": "MIT"
+}

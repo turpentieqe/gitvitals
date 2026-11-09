@@ -1,0 +1,8 @@
+node_modules/
+demo-app/
+.scratch/
+demo-report.html
+gitvitals-report.html
+*.log
+.DS_Store
+coverage/

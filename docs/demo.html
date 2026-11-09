@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="GitVitals — local-first Git repository analytics dashboard.">
+<title>GitVitals · Repository Analytics</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%230d1117'/%3E%3Cpath%20d='M4%2017h6l3-8%204%2014%203-9%202%203h6'%20fill='none'%20stroke='%2322d3ee'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+/* ============ GitVitals dashboard — fully offline, no external resources ============ */
+:root{
+  --bg:#0d1117;
+  --card:#161b22;
+  --card-hi:#1c2129;
+  --border:#30363d;
+  --border-soft:#21262d;
+  --text:#e6edf3;
+  --muted:#9198a1;
+  --faint:#6e7681;
+  --indigo:#6366f1;
+  --cyan:#22d3ee;
+  --green:#3fb950;
+  --amber:#d29922;
+  --red:#f85149;
+  --grad:linear-gradient(135deg,#6366f1 0%,#22d3ee 100%);
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --radius:14px;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 8px 24px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+body::before{
+  content:"";
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(600px 340px at 12% -4%,rgba(99,102,241,.10),transparent 65%),
+    radial-gradient(700px 380px at 92% 2%,rgba(34,211,238,.07),transparent 65%),
+    radial-gradient(900px 500px at 50% 110%,rgba(99,102,241,.05),transparent 60%);
+}
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:28px 20px 40px}
+::selection{background:rgba(99,102,241,.45)}
+
+/* ---------- cards & layout ---------- */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:20px 22px;
+  transition:border-color .2s ease,box-shadow .2s ease;
+  animation:rise .55s cubic-bezier(.22,1,.36,1) both;
+}
+.card:hover{border-color:#3a4149}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+.grid>.card:nth-child(1){animation-delay:.10s}
+.grid>.card:nth-child(2){animation-delay:.16s}
+.grid>.card:nth-child(3){animation-delay:.22s}
+.grid>.card:nth-child(4){animation-delay:.28s}
+.grid>.card:nth-child(5){animation-delay:.34s}
+.grid>.card:nth-child(6){animation-delay:.40s}
+.grid>.card:nth-child(7){animation-delay:.46s}
+.span2{grid-column:1/-1}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.card-title{display:flex;align-items:center;gap:10px;min-width:0}
+.card-title h2{font-size:15px;font-weight:650;letter-spacing:.2px;white-space:nowrap}
+.card-title .ico{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border-radius:8px;flex-shrink:0;
+  background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(34,211,238,.14));
+  border:1px solid rgba(99,102,241,.30);
+  color:#a5b4fc;
+}
+.card-title .ico svg{width:15px;height:15px}
+.sub{font-size:12px;color:var(--muted);min-width:0}
+.card-head .sub{margin-top:2px}
+.card-side{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* ---------- hero ---------- */
+.hero{display:flex;flex-direction:column;gap:20px;animation-delay:0s}
+.hero-top{display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap}
+.hero-info{min-width:0;flex:1 1 380px}
+.eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.eyebrow .logo{width:22px;height:22px;flex-shrink:0}
+.eyebrow .brand{
+  font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.eyebrow .sep{color:var(--faint);font-size:12px}
+.eyebrow .report-kind{color:var(--muted);font-size:12px;letter-spacing:.4px}
+#repo-name{
+  font-size:clamp(26px,4.2vw,40px);font-weight:750;letter-spacing:-.6px;line-height:1.15;
+  overflow-wrap:anywhere;margin-bottom:12px;
+}
+.chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 11px;border-radius:999px;
+  background:var(--card-hi);border:1px solid var(--border);
+  font-family:var(--mono);font-size:12px;color:var(--text);
+  max-width:100%;
+}
+.chip svg{width:13px;height:13px;color:var(--muted);flex-shrink:0}
+.chip .chip-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.branch{border-color:rgba(99,102,241,.45);background:rgba(99,102,241,.12);color:#c7d2fe}
+.chip.branch svg{color:#a5b4fc}
+.chip.ghost{color:var(--muted)}
+
+.gauge-box{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0}
+#gauge-mount svg{display:block;width:168px;height:168px}
+.gauge-label{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.3px}
+.gauge-arc{transition:stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1)}
+
+.factors{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 18px;border-top:1px solid var(--border-soft);padding-top:16px}
+.factor{min-width:0}
+.factor-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.factor-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.factor-score{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.factor-track{height:5px;border-radius:3px;background:var(--border-soft);margin:6px 0 4px;overflow:hidden}
+.factor-fill{height:100%;width:0;border-radius:3px;transition:width .9s cubic-bezier(.22,1,.36,1)}
+.factor-detail{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- KPI row ---------- */
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:16px}
+.kpi{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;box-shadow:var(--shadow);min-width:0;
+  animation:rise .55s cubic-bezier(.22,1,.36,1) both;
+  transition:transform .18s ease,border-color .18s ease;
+}
+.kpi:hover{transform:translateY(-2px);border-color:#3a4149}
+.kpi:nth-child(1){animation-delay:.04s}.kpi:nth-child(2){animation-delay:.08s}
+.kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.16s}
+.kpi:nth-child(5){animation-delay:.20s}.kpi:nth-child(6){animation-delay:.24s}
+.kpi-top{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.kpi-ico{display:inline-flex;width:15px;height:15px;flex-shrink:0}
+.kpi-ico svg{width:15px;height:15px}
+.kpi-label{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-value{
+  font-family:var(--mono);font-size:clamp(19px,2.2vw,25px);font-weight:700;letter-spacing:-.5px;line-height:1.2;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.kpi-sub{font-size:11px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- charts (shared) ---------- */
+.chart{display:block;width:100%;height:auto}
+.chart-center{margin:0 auto}
+svg text{font-family:var(--sans)}
+.svg-mono{font-family:var(--mono)}
+.ax-label{font-size:10px;fill:var(--muted)}
+.ax-label-sm{font-size:9px;fill:var(--faint)}
+.grid-line{stroke:var(--border-soft);stroke-width:1}
+.empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  padding:42px 16px;color:var(--muted);font-size:13px;text-align:center;
+  border:1px dashed var(--border);border-radius:10px;background:rgba(255,255,255,.012);
+}
+.empty svg{width:26px;height:26px;color:var(--faint);opacity:.8}
+div.empty svg{width:26px;height:26px}
+.note{font-size:11.5px;color:var(--faint);margin-top:12px}
+
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:12px;font-weight:600;
+  padding:4px 11px;border-radius:999px;border:1px solid var(--border);
+  background:var(--card-hi);color:var(--muted);white-space:nowrap;
+}
+.badge.green{color:#7ee787;border-color:rgba(63,185,80,.4);background:rgba(63,185,80,.1)}
+.badge.amber{color:#e3b341;border-color:rgba(210,153,34,.4);background:rgba(210,153,34,.1)}
+.badge.red{color:#ff7b72;border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.1)}
+.badge.accent{color:#a5b4fc;border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.1)}
+
+.stat-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.stat-chip{
+  display:inline-flex;align-items:baseline;gap:6px;
+  background:var(--card-hi);border:1px solid var(--border-soft);border-radius:8px;
+  padding:5px 10px;font-size:11.5px;color:var(--muted);
+}
+.stat-chip b{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:650}
+
+/* heatmap */
+.hm-cell{transition:stroke .1s ease;stroke-width:1;stroke:transparent;cursor:default}
+.hm-cell:hover{stroke:var(--text)}
+.hm-0{fill:#151b23;stroke:var(--border-soft)}
+.hm-0:hover{stroke:var(--muted)}
+.legend{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.legend .sw{width:11px;height:11px;border-radius:2.5px;display:inline-block}
+.heat-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}
+
+/* punchcard */
+.punch-dot{transition:r .12s ease,opacity .12s ease;cursor:default}
+.punch-dot:hover{opacity:1!important;stroke:var(--text);stroke-width:1.5}
+
+/* velocity */
+.vel-hit{fill:transparent;cursor:default}
+.vel-dot{opacity:0;transition:opacity .12s ease;pointer-events:none}
+.vel-hit:hover+.vel-dot{opacity:1}
+.trend-up{color:#7ee787;border-color:rgba(63,185,80,.4);background:rgba(63,185,80,.1)}
+.trend-down{color:#ff7b72;border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.1)}
+
+/* contributors */
+.contrib-row{
+  display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;
+  padding:8px 6px;border-radius:9px;transition:background .15s ease;cursor:default;
+}
+.contrib-row:hover{background:var(--card-hi)}
+.avatar{
+  width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;letter-spacing:.3px;
+  border:1px solid rgba(255,255,255,.14);flex-shrink:0;user-select:none;
+}
+.contrib-mid{min-width:0}
+.contrib-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
+.bar-track{height:6px;border-radius:3px;background:var(--border-soft);overflow:hidden}
+.bar-fill{height:100%;width:0;border-radius:3px;background:var(--grad);transition:width .9s cubic-bezier(.22,1,.36,1)}
+.contrib-right{text-align:right}
+.contrib-commits{font-family:var(--mono);font-size:13.5px;font-weight:650}
+.contrib-pct{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+/* hotspots */
+.table-scroll{overflow-x:auto}
+table.hs{width:100%;min-width:600px;border-collapse:collapse;table-layout:fixed}
+table.hs th{
+  font-size:10.5px;font-weight:650;letter-spacing:.9px;text-transform:uppercase;color:var(--faint);
+  text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap;
+}
+table.hs td{padding:8px 10px;border-bottom:1px solid var(--border-soft);font-size:12.5px;vertical-align:middle}
+table.hs tr:last-child td{border-bottom:none}
+table.hs tbody tr{transition:background .12s ease;cursor:default}
+table.hs tbody tr:hover{background:var(--card-hi)}
+.hs-path{display:block;font-family:var(--mono);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hs-dir{color:var(--faint)}
+.hs-base{color:var(--text);font-weight:600}
+.hs-num{font-family:var(--mono);color:var(--text);white-space:nowrap}
+.hs-size{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+.risk-cell{display:flex;align-items:center;gap:8px}
+.risk-track{flex:1;min-width:34px;height:6px;border-radius:3px;background:var(--border-soft);overflow:hidden}
+.risk-fill{height:100%;width:0;border-radius:3px;transition:width .9s cubic-bezier(.22,1,.36,1)}
+.risk-num{font-family:var(--mono);font-size:11.5px;color:var(--muted);width:24px;text-align:right;flex-shrink:0}
+col.c-path{width:auto}col.c-changes{width:82px}col.c-authors{width:76px}col.c-size{width:88px}col.c-risk{width:128px}
+
+/* languages */
+.langs-body{display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.donut-wrap{position:relative;flex-shrink:0;margin:0 auto}
+.donut-wrap svg{display:block;width:184px;height:184px}
+.donut-seg{transition:stroke-width .15s ease,opacity .15s ease;cursor:default}
+.donut-seg:hover,.donut-seg.hl{stroke-width:31}
+.lang-legend{flex:1 1 240px;min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:4px 18px}
+.lang-row{
+  display:flex;align-items:center;gap:9px;padding:5px 7px;border-radius:7px;min-width:0;
+  transition:background .12s ease;cursor:default;
+}
+.lang-row:hover{background:var(--card-hi)}
+.lang-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;border:1px solid rgba(255,255,255,.15)}
+.lang-name{flex:1;font-size:12.5px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.lang-pct{font-family:var(--mono);font-size:12px;color:var(--text)}
+.lang-bytes{font-family:var(--mono);font-size:10.5px;color:var(--faint);width:62px;text-align:right;flex-shrink:0}
+
+/* treemap */
+.tm-body{display:flex;gap:20px;align-items:stretch}
+.tm-main{flex:1 1 auto;min-width:0}
+.tm-main svg{display:block;width:100%;height:auto;border-radius:10px}
+.tm-cell{transition:filter .12s ease;cursor:default;stroke:var(--bg);stroke-width:1.5}
+.tm-cell:hover{filter:brightness(1.22);stroke:var(--text)}
+.tm-label{pointer-events:none;font-weight:650}
+.tm-sub{pointer-events:none;font-family:var(--mono)}
+.tm-aside{flex:0 0 232px;min-width:0;border-left:1px solid var(--border-soft);padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.tm-aside h3{font-size:11px;font-weight:650;letter-spacing:.9px;text-transform:uppercase;color:var(--faint);margin-bottom:2px}
+.big-row{min-width:0;padding:5px 6px;border-radius:7px;transition:background .12s ease;cursor:default}
+.big-row:hover{background:var(--card-hi)}
+.big-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.big-name{font-family:var(--mono);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.big-size{font-family:var(--mono);font-size:11px;color:var(--muted);flex-shrink:0}
+.big-track{height:4px;border-radius:2px;background:var(--border-soft);margin-top:5px;overflow:hidden}
+.big-fill{height:100%;width:0;border-radius:2px;transition:width .9s cubic-bezier(.22,1,.36,1)}
+
+/* ---------- footer ---------- */
+footer{
+  margin-top:28px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  color:var(--faint);font-size:12px;text-align:center;
+  animation:rise .55s .5s cubic-bezier(.22,1,.36,1) both;
+}
+footer .foot-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+footer svg{width:15px;height:15px;color:#a5b4fc}
+footer .gh{font-family:var(--mono);font-size:11.5px;color:var(--muted);border:1px solid var(--border-soft);border-radius:999px;padding:2px 10px;background:var(--card)}
+
+/* ---------- tooltip ---------- */
+#tooltip{
+  position:fixed;left:0;top:0;z-index:99;max-width:340px;
+  background:rgba(28,33,41,.96);border:1px solid #3d444d;border-radius:9px;
+  padding:8px 11px;box-shadow:0 10px 30px rgba(0,0,0,.45);
+  font-size:12px;line-height:1.45;pointer-events:none;opacity:0;
+  transition:opacity .12s ease;backdrop-filter:blur(4px);
+}
+#tooltip.on{opacity:1}
+.tip-title{font-weight:650;color:var(--text);overflow-wrap:anywhere}
+.tip-line{color:var(--muted);overflow-wrap:anywhere}
+.tip-line b{color:var(--text);font-family:var(--mono);font-weight:600}
+
+.fatal{margin-bottom:16px;border-color:rgba(248,81,73,.5);color:#ff7b72;font-size:13px}
+
+/* ---------- responsive ---------- */
+@media (max-width:1080px){
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:1023px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .tm-body{flex-direction:column}
+  .tm-aside{flex-basis:auto;border-left:none;border-top:1px solid var(--border-soft);padding-left:0;padding-top:14px}
+}
+@media (max-width:640px){
+  .wrap{padding:18px 12px 30px}
+  .card{padding:16px 14px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .hero-top{gap:18px}
+  .gauge-box{margin:0 auto}
+  col.c-authors{width:58px}col.c-size{width:70px}col.c-risk{width:96px}col.c-changes{width:64px}
+  table.hs td,table.hs th{padding:7px 6px}
+  .lang-bytes{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="fatal" class="card fatal" hidden>
+    This GitVitals report could not read its embedded data. Re-run GitVitals to regenerate the dashboard.
+  </div>
+
+  <!-- ============ HERO ============ -->
+  <header class="card hero" aria-label="Repository overview">
+    <div class="hero-top">
+      <div class="hero-info">
+        <div class="eyebrow">
+          <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+            <defs><linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#22d3ee"/>
+            </linearGradient></defs>
+            <rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="url(#logo-g)" stroke-width="1.6"/>
+            <path d="M5 17h5.5l3-8 4.5 14 3-9 2 3H27" fill="none" stroke="url(#logo-g)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="brand">GitVitals</span>
+          <span class="sep">·</span>
+          <span class="report-kind">repository report</span>
+        </div>
+        <h1 id="repo-name">Repository</h1>
+        <div class="chips">
+          <span class="chip branch" title="Current branch">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+              <circle cx="4.5" cy="3.5" r="1.8"/><circle cx="4.5" cy="12.5" r="1.8"/><circle cx="11.5" cy="5.5" r="1.8"/>
+              <path d="M4.5 5.3v5.4M11.5 7.3c0 2.4-2.6 2.7-4.6 3.1"/>
+            </svg>
+            <span class="chip-text" id="branch-name">main</span>
+          </span>
+          <span class="chip ghost" title="Report generation time (UTC)">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.6"/>
+            </svg>
+            <span class="chip-text" id="generated-at">—</span>
+          </span>
+          <span class="chip ghost" id="span-chip" title="First → last commit" hidden>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+              <path d="M2.5 8h11M9.5 4.5 13 8l-3.5 3.5"/>
+            </svg>
+            <span class="chip-text" id="span-text"></span>
+          </span>
+        </div>
+      </div>
+      <div class="gauge-box">
+        <div id="gauge-mount"></div>
+        <div class="gauge-label" id="gauge-label">Repository health</div>
+      </div>
+    </div>
+    <div class="factors" id="factors" aria-label="Health factors"></div>
+  </header>
+
+  <!-- ============ KPIs ============ -->
+  <section class="kpis" id="kpis" aria-label="Key repository metrics"></section>
+
+  <!-- ============ SECTIONS ============ -->
+  <main class="grid" id="main-grid">
+
+    <!-- Activity heatmap -->
+    <section class="card span2" aria-label="Commit activity heatmap">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v2.5M10.5 1.5v2.5"/></svg></span>
+          <div>
+            <h2>Activity</h2>
+            <div class="sub" id="activity-sub">Commit calendar</div>
+          </div>
+        </div>
+        <div class="card-side" id="activity-side"></div>
+      </div>
+      <div class="stat-chips" id="activity-stats"></div>
+      <div id="heatmap-mount"></div>
+      <div class="heat-foot">
+        <span class="sub" id="activity-range"></span>
+        <span class="legend" id="heat-legend" aria-hidden="true">
+          Less
+          <span class="sw" style="background:#151b23;border:1px solid #21262d"></span>
+          <span class="sw" style="background:#0e4429"></span>
+          <span class="sw" style="background:#006d32"></span>
+          <span class="sw" style="background:#26a641"></span>
+          <span class="sw" style="background:#39d353"></span>
+          More
+        </span>
+      </div>
+    </section>
+
+    <!-- Punch card -->
+    <section class="card span2" aria-label="Weekly commit punch card">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.6"/></svg></span>
+          <div>
+            <h2>Punch card</h2>
+            <div class="sub" id="punch-sub">When commits happen — weekday × hour (UTC)</div>
+          </div>
+        </div>
+        <div class="card-side" id="punch-side"></div>
+      </div>
+      <div id="punch-mount"></div>
+    </section>
+
+    <!-- Velocity -->
+    <section class="card" aria-label="Commit velocity">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12.5 6 8l2.5 2.5L14 4"/><path d="M10.5 4H14v3.5"/></svg></span>
+          <div>
+            <h2>Velocity</h2>
+            <div class="sub" id="velocity-sub">Commits per month</div>
+          </div>
+        </div>
+        <div class="card-side" id="velocity-side"></div>
+      </div>
+      <div id="velocity-mount"></div>
+      <div class="stat-chips" id="velocity-stats" style="margin:14px 0 0"></div>
+    </section>
+
+    <!-- Contributors -->
+    <section class="card" aria-label="Contributor leaderboard">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="5" r="2.4"/><path d="M1.8 13.2c.5-2.3 2.2-3.6 4.2-3.6s3.7 1.3 4.2 3.6"/><circle cx="11.6" cy="5.6" r="1.8"/><path d="M11.4 9.7c1.6.2 2.7 1.4 3 3.1"/></svg></span>
+          <div>
+            <h2>Contributors</h2>
+            <div class="sub" id="contrib-sub">Commit leaderboard</div>
+          </div>
+        </div>
+        <div class="card-side" id="contrib-side"></div>
+      </div>
+      <div id="contrib-mount"></div>
+      <div class="note" id="contrib-note" hidden></div>
+    </section>
+
+    <!-- Hotspots -->
+    <section class="card" aria-label="File hotspots">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 1.5c.6 3-2.8 3.9-2.8 6.6a2.9 2.9 0 0 0 5.8.2c0-1-.4-1.9-.9-2.6 1.7.7 3 2.4 3 4.4A5.1 5.1 0 0 1 3.4 10C3.4 5.6 7.7 4.8 8.5 1.5Z"/></svg></span>
+          <div>
+            <h2>Hotspots</h2>
+            <div class="sub" id="hotspots-sub">Most-churned files</div>
+          </div>
+        </div>
+        <div class="card-side" id="hotspots-side"></div>
+      </div>
+      <div id="hotspots-mount"></div>
+    </section>
+
+    <!-- Languages -->
+    <section class="card" aria-label="Language breakdown">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M8 1.8v6.2l5.4 3.1"/></svg></span>
+          <div>
+            <h2>Languages</h2>
+            <div class="sub" id="langs-sub">Share of repository bytes</div>
+          </div>
+        </div>
+        <div class="card-side" id="langs-side"></div>
+      </div>
+      <div id="langs-mount"></div>
+    </section>
+
+    <!-- Treemap -->
+    <section class="card span2" aria-label="Storage treemap">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1.8" y="1.8" width="12.4" height="12.4" rx="1.6"/><path d="M7.2 1.8v12.4M7.2 8.4h7M1.8 10.6h5.4"/></svg></span>
+          <div>
+            <h2>Storage treemap</h2>
+            <div class="sub" id="treemap-sub">Area = file size · color = language</div>
+          </div>
+        </div>
+        <div class="card-side" id="treemap-side"></div>
+      </div>
+      <div class="tm-body">
+        <div class="tm-main" id="treemap-mount"></div>
+        <aside class="tm-aside" id="biggest-mount" aria-label="Biggest files"></aside>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="foot-line">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17h6l3-8 4 14 3-9 2 3h6"/></svg>
+      <span>Generated locally by <strong>GitVitals</strong> · your code never left this machine</span>
+    </div>
+    <a class="gh" href="https://github.com/turpentieqe/gitvitals" style="color:inherit;text-decoration:none">github.com/turpentieqe/gitvitals</a>
+  </footer>
+</div>
+
+<div id="tooltip" role="tooltip" aria-hidden="true"></div>
+<noscript><div style="padding:24px;text-align:center;color:#8b949e">GitVitals reports render with JavaScript — everything runs locally in your browser, no network required.</div></noscript>
+
+<script type="application/json" id="gitvitals-data">{"meta":{"name":"demo-app","branch":"main","generatedAt":"2026-11-09T11:56:44.000Z","totalCommits":521,"totalContributors":6,"totalFiles":28,"totalBytes":147584,"firstCommit":"2025-09-15T00:00:00.000Z","lastCommit":"2026-11-09T11:06:28.000Z","ageDays":420,"spanDays":420},"health":{"score":76,"grade":"B","label":"Good","factors":[{"key":"bus","label":"Knowledge sharing","score":50,"weight":0.25,"detail":"Bus factor 2 · top author owns 40.1%"},{"key":"recency","label":"Recent activity","score":100,"weight":0.25,"detail":"Last commit 0 days ago"},{"key":"consistency","label":"Consistency","score":100,"weight":0.2,"detail":"Active in 100% of weeks"},{"key":"community","label":"Community","score":85,"weight":0.15,"detail":"6 contributors"},{"key":"hotspots","label":"Code risk","score":40,"weight":0.15,"detail":"10 hotspots to watch"}]},"activity":{"calendar":[{"date":"2025-11-10","count":0},{"date":"2025-11-11","count":3},{"date":"2025-11-12","count":2},{"date":"2025-11-13","count":3},{"date":"2025-11-14","count":0},{"date":"2025-11-15","count":1},{"date":"2025-11-16","count":0},{"date":"2025-11-17","count":2},{"date":"2025-11-18","count":1},{"date":"2025-11-19","count":3},{"date":"2025-11-20","count":0},{"date":"2025-11-21","count":2},{"date":"2025-11-22","count":1},{"date":"2025-11-23","count":1},{"date":"2025-11-24","count":1},{"date":"2025-11-25","count":3},{"date":"2025-11-26","count":2},{"date":"2025-11-27","count":0},{"date":"2025-11-28","count":2},{"date":"2025-11-29","count":0},{"date":"2025-11-30","count":1},{"date":"2025-12-01","count":2},{"date":"2025-12-02","count":3},{"date":"2025-12-03","count":1},{"date":"2025-12-04","count":0},{"date":"2025-12-05","count":1},{"date":"2025-12-06","count":0},{"date":"2025-12-07","count":1},{"date":"2025-12-08","count":2},{"date":"2025-12-09","count":2},{"date":"2025-12-10","count":1},{"date":"2025-12-11","count":3},{"date":"2025-12-12","count":2},{"date":"2025-12-13","count":1},{"date":"2025-12-14","count":1},{"date":"2025-12-15","count":2},{"date":"2025-12-16","count":1},{"date":"2025-12-17","count":1},{"date":"2025-12-18","count":3},{"date":"2025-12-19","count":2},{"date":"2025-12-20","count":1},{"date":"2025-12-21","count":0},{"date":"2025-12-22","count":2},{"date":"2025-12-23","count":1},{"date":"2025-12-24","count":0},{"date":"2025-12-25","count":3},{"date":"2025-12-26","count":1},{"date":"2025-12-27","count":1},{"date":"2025-12-28","count":0},{"date":"2025-12-29","count":0},{"date":"2025-12-30","count":1},{"date":"2025-12-31","count":1},{"date":"2026-01-01","count":0},{"date":"2026-01-02","count":2},{"date":"2026-01-03","count":1},{"date":"2026-01-04","count":1},{"date":"2026-01-05","count":0},{"date":"2026-01-06","count":1},{"date":"2026-01-07","count":1},{"date":"2026-01-08","count":2},{"date":"2026-01-09","count":0},{"date":"2026-01-10","count":1},{"date":"2026-01-11","count":0},{"date":"2026-01-12","count":2},{"date":"2026-01-13","count":2},{"date":"2026-01-14","count":2},{"date":"2026-01-15","count":1},{"date":"2026-01-16","count":1},{"date":"2026-01-17","count":0},{"date":"2026-01-18","count":1},{"date":"2026-01-19","count":1},{"date":"2026-01-20","count":0},{"date":"2026-01-21","count":2},{"date":"2026-01-22","count":1},{"date":"2026-01-23","count":2},{"date":"2026-01-24","count":0},{"date":"2026-01-25","count":1},{"date":"2026-01-26","count":1},{"date":"2026-01-27","count":1},{"date":"2026-01-28","count":2},{"date":"2026-01-29","count":3},{"date":"2026-01-30","count":3},{"date":"2026-01-31","count":1},{"date":"2026-02-01","count":1},{"date":"2026-02-02","count":3},{"date":"2026-02-03","count":2},{"date":"2026-02-04","count":0},{"date":"2026-02-05","count":2},{"date":"2026-02-06","count":0},{"date":"2026-02-07","count":0},{"date":"2026-02-08","count":1},{"date":"2026-02-09","count":1},{"date":"2026-02-10","count":0},{"date":"2026-02-11","count":1},{"date":"2026-02-12","count":2},{"date":"2026-02-13","count":3},{"date":"2026-02-14","count":0},{"date":"2026-02-15","count":1},{"date":"2026-02-16","count":0},{"date":"2026-02-17","count":0},{"date":"2026-02-18","count":3},{"date":"2026-02-19","count":1},{"date":"2026-02-20","count":3},{"date":"2026-02-21","count":1},{"date":"2026-02-22","count":1},{"date":"2026-02-23","count":0},{"date":"2026-02-24","count":1},{"date":"2026-02-25","count":0},{"date":"2026-02-26","count":0},{"date":"2026-02-27","count":3},{"date":"2026-02-28","count":1},{"date":"2026-03-01","count":0},{"date":"2026-03-02","count":3},{"date":"2026-03-03","count":2},{"date":"2026-03-04","count":1},{"date":"2026-03-05","count":3},{"date":"2026-03-06","count":0},{"date":"2026-03-07","count":1},{"date":"2026-03-08","count":0},{"date":"2026-03-09","count":3},{"date":"2026-03-10","count":2},{"date":"2026-03-11","count":0},{"date":"2026-03-12","count":2},{"date":"2026-03-13","count":0},{"date":"2026-03-14","count":0},{"date":"2026-03-15","count":1},{"date":"2026-03-16","count":1},{"date":"2026-03-17","count":1},{"date":"2026-03-18","count":1},{"date":"2026-03-19","count":3},{"date":"2026-03-20","count":0},{"date":"2026-03-21","count":0},{"date":"2026-03-22","count":1},{"date":"2026-03-23","count":0},{"date":"2026-03-24","count":1},{"date":"2026-03-25","count":0},{"date":"2026-03-26","count":1},{"date":"2026-03-27","count":1},{"date":"2026-03-28","count":1},{"date":"2026-03-29","count":1},{"date":"2026-03-30","count":0},{"date":"2026-03-31","count":3},{"date":"2026-04-01","count":2},{"date":"2026-04-02","count":3},{"date":"2026-04-03","count":3},{"date":"2026-04-04","count":0},{"date":"2026-04-05","count":0},{"date":"2026-04-06","count":1},{"date":"2026-04-07","count":1},{"date":"2026-04-08","count":1},{"date":"2026-04-09","count":0},{"date":"2026-04-10","count":0},{"date":"2026-04-11","count":1},{"date":"2026-04-12","count":1},{"date":"2026-04-13","count":1},{"date":"2026-04-14","count":2},{"date":"2026-04-15","count":3},{"date":"2026-04-16","count":3},{"date":"2026-04-17","count":2},{"date":"2026-04-18","count":1},{"date":"2026-04-19","count":1},{"date":"2026-04-20","count":0},{"date":"2026-04-21","count":1},{"date":"2026-04-22","count":2},{"date":"2026-04-23","count":3},{"date":"2026-04-24","count":3},{"date":"2026-04-25","count":0},{"date":"2026-04-26","count":1},{"date":"2026-04-27","count":1},{"date":"2026-04-28","count":1},{"date":"2026-04-29","count":1},{"date":"2026-04-30","count":2},{"date":"2026-05-01","count":0},{"date":"2026-05-02","count":0},{"date":"2026-05-03","count":0},{"date":"2026-05-04","count":1},{"date":"2026-05-05","count":1},{"date":"2026-05-06","count":1},{"date":"2026-05-07","count":0},{"date":"2026-05-08","count":2},{"date":"2026-05-09","count":1},{"date":"2026-05-10","count":0},{"date":"2026-05-11","count":2},{"date":"2026-05-12","count":2},{"date":"2026-05-13","count":1},{"date":"2026-05-14","count":3},{"date":"2026-05-15","count":3},{"date":"2026-05-16","count":1},{"date":"2026-05-17","count":0},{"date":"2026-05-18","count":0},{"date":"2026-05-19","count":2},{"date":"2026-05-20","count":3},{"date":"2026-05-21","count":3},{"date":"2026-05-22","count":1},{"date":"2026-05-23","count":0},{"date":"2026-05-24","count":0},{"date":"2026-05-25","count":1},{"date":"2026-05-26","count":3},{"date":"2026-05-27","count":1},{"date":"2026-05-28","count":3},{"date":"2026-05-29","count":2},{"date":"2026-05-30","count":1},{"date":"2026-05-31","count":0},{"date":"2026-06-01","count":3},{"date":"2026-06-02","count":2},{"date":"2026-06-03","count":1},{"date":"2026-06-04","count":1},{"date":"2026-06-05","count":0},{"date":"2026-06-06","count":1},{"date":"2026-06-07","count":1},{"date":"2026-06-08","count":3},{"date":"2026-06-09","count":1},{"date":"2026-06-10","count":1},{"date":"2026-06-11","count":3},{"date":"2026-06-12","count":0},{"date":"2026-06-13","count":0},{"date":"2026-06-14","count":0},{"date":"2026-06-15","count":3},{"date":"2026-06-16","count":0},{"date":"2026-06-17","count":3},{"date":"2026-06-18","count":1},{"date":"2026-06-19","count":2},{"date":"2026-06-20","count":0},{"date":"2026-06-21","count":1},{"date":"2026-06-22","count":0},{"date":"2026-06-23","count":1},{"date":"2026-06-24","count":1},{"date":"2026-06-25","count":3},{"date":"2026-06-26","count":0},{"date":"2026-06-27","count":1},{"date":"2026-06-28","count":1},{"date":"2026-06-29","count":0},{"date":"2026-06-30","count":0},{"date":"2026-07-01","count":0},{"date":"2026-07-02","count":1},{"date":"2026-07-03","count":1},{"date":"2026-07-04","count":1},{"date":"2026-07-05","count":0},{"date":"2026-07-06","count":3},{"date":"2026-07-07","count":1},{"date":"2026-07-08","count":1},{"date":"2026-07-09","count":1},{"date":"2026-07-10","count":2},{"date":"2026-07-11","count":1},{"date":"2026-07-12","count":0},{"date":"2026-07-13","count":2},{"date":"2026-07-14","count":2},{"date":"2026-07-15","count":3},{"date":"2026-07-16","count":2},{"date":"2026-07-17","count":2},{"date":"2026-07-18","count":1},{"date":"2026-07-19","count":0},{"date":"2026-07-20","count":3},{"date":"2026-07-21","count":2},{"date":"2026-07-22","count":0},{"date":"2026-07-23","count":0},{"date":"2026-07-24","count":3},{"date":"2026-07-25","count":0},{"date":"2026-07-26","count":1},{"date":"2026-07-27","count":1},{"date":"2026-07-28","count":0},{"date":"2026-07-29","count":0},{"date":"2026-07-30","count":1},{"date":"2026-07-31","count":2},{"date":"2026-08-01","count":1},{"date":"2026-08-02","count":1},{"date":"2026-08-03","count":1},{"date":"2026-08-04","count":2},{"date":"2026-08-05","count":1},{"date":"2026-08-06","count":3},{"date":"2026-08-07","count":3},{"date":"2026-08-08","count":1},{"date":"2026-08-09","count":0},{"date":"2026-08-10","count":1},{"date":"2026-08-11","count":2},{"date":"2026-08-12","count":3},{"date":"2026-08-13","count":0},{"date":"2026-08-14","count":0},{"date":"2026-08-15","count":1},{"date":"2026-08-16","count":0},{"date":"2026-08-17","count":0},{"date":"2026-08-18","count":3},{"date":"2026-08-19","count":0},{"date":"2026-08-20","count":0},{"date":"2026-08-21","count":3},{"date":"2026-08-22","count":1},{"date":"2026-08-23","count":1},{"date":"2026-08-24","count":2},{"date":"2026-08-25","count":1},{"date":"2026-08-26","count":2},{"date":"2026-08-27","count":2},{"date":"2026-08-28","count":1},{"date":"2026-08-29","count":0},{"date":"2026-08-30","count":0},{"date":"2026-08-31","count":1},{"date":"2026-09-01","count":1},{"date":"2026-09-02","count":3},{"date":"2026-09-03","count":1},{"date":"2026-09-04","count":3},{"date":"2026-09-05","count":1},{"date":"2026-09-06","count":0},{"date":"2026-09-07","count":0},{"date":"2026-09-08","count":2},{"date":"2026-09-09","count":1},{"date":"2026-09-10","count":3},{"date":"2026-09-11","count":2},{"date":"2026-09-12","count":0},{"date":"2026-09-13","count":1},{"date":"2026-09-14","count":1},{"date":"2026-09-15","count":3},{"date":"2026-09-16","count":3},{"date":"2026-09-17","count":0},{"date":"2026-09-18","count":2},{"date":"2026-09-19","count":0},{"date":"2026-09-20","count":0},{"date":"2026-09-21","count":2},{"date":"2026-09-22","count":2},{"date":"2026-09-23","count":0},{"date":"2026-09-24","count":2},{"date":"2026-09-25","count":2},{"date":"2026-09-26","count":1},{"date":"2026-09-27","count":1},{"date":"2026-09-28","count":2},{"date":"2026-09-29","count":3},{"date":"2026-09-30","count":1},{"date":"2026-10-01","count":2},{"date":"2026-10-02","count":0},{"date":"2026-10-03","count":1},{"date":"2026-10-04","count":0},{"date":"2026-10-05","count":2},{"date":"2026-10-06","count":2},{"date":"2026-10-07","count":2},{"date":"2026-10-08","count":1},{"date":"2026-10-09","count":0},{"date":"2026-10-10","count":0},{"date":"2026-10-11","count":1},{"date":"2026-10-12","count":2},{"date":"2026-10-13","count":0},{"date":"2026-10-14","count":2},{"date":"2026-10-15","count":2},{"date":"2026-10-16","count":2},{"date":"2026-10-17","count":1},{"date":"2026-10-18","count":1},{"date":"2026-10-19","count":1},{"date":"2026-10-20","count":2},{"date":"2026-10-21","count":2},{"date":"2026-10-22","count":2},{"date":"2026-10-23","count":0},{"date":"2026-10-24","count":0},{"date":"2026-10-25","count":1},{"date":"2026-10-26","count":0},{"date":"2026-10-27","count":1},{"date":"2026-10-28","count":0},{"date":"2026-10-29","count":1},{"date":"2026-10-30","count":1},{"date":"2026-10-31","count":1},{"date":"2026-11-01","count":0},{"date":"2026-11-02","count":0},{"date":"2026-11-03","count":3},{"date":"2026-11-04","count":1},{"date":"2026-11-05","count":3},{"date":"2026-11-06","count":3},{"date":"2026-11-07","count":0},{"date":"2026-11-08","count":0},{"date":"2026-11-09","count":2}],"calendarStart":"2025-11-10","calendarEnd":"2026-11-09","maxDay":3,"byHour":[1,0,0,0,0,0,0,0,0,35,64,55,33,29,73,78,68,32,23,0,13,0,17,0],"byDow":[88,95,81,105,88,34,30],"punchcard":[{"dow":0,"hour":0,"count":1},{"dow":1,"hour":11,"count":14},{"dow":1,"hour":13,"count":6},{"dow":2,"hour":16,"count":11},{"dow":2,"hour":14,"count":11},{"dow":3,"hour":10,"count":9},{"dow":3,"hour":12,"count":11},{"dow":5,"hour":10,"count":10},{"dow":0,"hour":16,"count":16},{"dow":0,"hour":13,"count":3},{"dow":1,"hour":16,"count":9},{"dow":1,"hour":14,"count":15},{"dow":3,"hour":15,"count":17},{"dow":3,"hour":16,"count":15},{"dow":4,"hour":13,"count":6},{"dow":6,"hour":16,"count":6},{"dow":0,"hour":11,"count":13},{"dow":1,"hour":15,"count":11},{"dow":2,"hour":10,"count":9},{"dow":3,"hour":18,"count":8},{"dow":4,"hour":11,"count":9},{"dow":5,"hour":14,"count":3},{"dow":6,"hour":9,"count":4},{"dow":0,"hour":14,"count":15},{"dow":0,"hour":15,"count":11},{"dow":1,"hour":12,"count":8},{"dow":2,"hour":11,"count":8},{"dow":3,"hour":13,"count":6},{"dow":4,"hour":15,"count":17},{"dow":4,"hour":22,"count":3},{"dow":0,"hour":10,"count":13},{"dow":1,"hour":17,"count":5},{"dow":2,"hour":18,"count":4},{"dow":2,"hour":15,"count":10},{"dow":3,"hour":14,"count":17},{"dow":4,"hour":10,"count":10},{"dow":0,"hour":17,"count":5},{"dow":3,"hour":17,"count":8},{"dow":1,"hour":10,"count":13},{"dow":4,"hour":9,"count":10},{"dow":1,"hour":22,"count":4},{"dow":3,"hour":20,"count":2},{"dow":2,"hour":9,"count":8},{"dow":5,"hour":15,"count":8},{"dow":5,"hour":12,"count":2},{"dow":6,"hour":20,"count":2},{"dow":1,"hour":9,"count":3},{"dow":1,"hour":18,"count":5},{"dow":2,"hour":22,"count":2},{"dow":4,"hour":14,"count":9},{"dow":6,"hour":17,"count":2},{"dow":4,"hour":17,"count":4},{"dow":6,"hour":11,"count":1},{"dow":6,"hour":14,"count":3},{"dow":2,"hour":20,"count":5},{"dow":3,"hour":22,"count":3},{"dow":3,"hour":9,"count":4},{"dow":4,"hour":20,"count":2},{"dow":5,"hour":11,"count":5},{"dow":6,"hour":15,"count":4},{"dow":0,"hour":22,"count":2},{"dow":2,"hour":17,"count":6},{"dow":4,"hour":16,"count":9},{"dow":0,"hour":9,"count":5},{"dow":6,"hour":18,"count":2},{"dow":4,"hour":12,"count":5},{"dow":2,"hour":13,"count":6},{"dow":5,"hour":16,"count":2},{"dow":5,"hour":9,"count":1},{"dow":3,"hour":11,"count":5},{"dow":6,"hour":22,"count":2},{"dow":5,"hour":17,"count":2},{"dow":4,"hour":18,"count":4},{"dow":0,"hour":12,"count":4},{"dow":5,"hour":22,"count":1},{"dow":6,"hour":12,"count":2},{"dow":2,"hour":12,"count":1},{"dow":1,"hour":20,"count":2},{"dow":6,"hour":13,"count":2}],"punchMax":17,"activeDays":301,"currentStreak":1,"longestStreak":14,"avgPerActiveDay":1.7},"velocity":{"series":[{"label":"2025-09","commits":25,"additions":1752,"deletions":0},{"label":"2025-10","commits":44,"additions":112,"deletions":0},{"label":"2025-11","commits":37,"additions":91,"deletions":0},{"label":"2025-12","commits":40,"additions":90,"deletions":0},{"label":"2026-01","commits":36,"additions":87,"deletions":0},{"label":"2026-02","commits":31,"additions":65,"deletions":0},{"label":"2026-03","commits":33,"additions":67,"deletions":0},{"label":"2026-04","commits":41,"additions":107,"deletions":0},{"label":"2026-05","commits":38,"additions":96,"deletions":0},{"label":"2026-06","commits":34,"additions":83,"deletions":0},{"label":"2026-07","commits":37,"additions":90,"deletions":0},{"label":"2026-08","commits":37,"additions":82,"deletions":0},{"label":"2026-09","commits":43,"additions":113,"deletions":0},{"label":"2026-10","commits":33,"additions":69,"deletions":0},{"label":"2026-11","commits":12,"additions":20,"deletions":0}],"trend":-15,"peak":{"label":"2025-10","commits":44}},"contributors":{"total":6,"busFactor":2,"busFactorLabel":"Fragile","topSharePercent":40.1,"list":[{"name":"Alice Nguyen","commits":209,"percent":40.1,"additions":2171,"deletions":0,"firstCommit":"2025-09-15T00:00:00.000Z","lastCommit":"2026-11-06T18:56:10.000Z","activeDays":171},{"name":"Bob Martinez","commits":118,"percent":22.6,"additions":288,"deletions":0,"firstCommit":"2025-09-18T10:49:32.000Z","lastCommit":"2026-11-06T16:22:21.000Z","activeDays":109},{"name":"Carol Smith","commits":76,"percent":14.6,"additions":179,"deletions":0,"firstCommit":"2025-09-17T14:29:51.000Z","lastCommit":"2026-11-09T11:06:28.000Z","activeDays":71},{"name":"Dave Kim","commits":57,"percent":10.9,"additions":132,"deletions":0,"firstCommit":"2025-09-20T10:08:29.000Z","lastCommit":"2026-11-09T16:57:53.000Z","activeDays":57},{"name":"Erin Johnson","commits":36,"percent":6.9,"additions":92,"deletions":0,"firstCommit":"2025-10-14T17:56:45.000Z","lastCommit":"2026-10-15T13:08:39.000Z","activeDays":36},{"name":"Frank Weber","commits":25,"percent":4.8,"additions":62,"deletions":0,"firstCommit":"2025-09-30T16:58:34.000Z","lastCommit":"2026-10-06T15:54:34.000Z","activeDays":25}]},"hotspots":[{"path":"src/app.tsx","changes":137,"authors":6,"bytes":12067,"lang":"TypeScript","color":"#3178c6","risk":90,"lastChange":"2026-11-05T15:26:59.000Z"},{"path":"src/index.ts","changes":119,"authors":6,"bytes":8815,"lang":"TypeScript","color":"#3178c6","risk":81,"lastChange":"2026-11-09T11:06:28.000Z"},{"path":"server/main.py","changes":102,"authors":6,"bytes":8936,"lang":"Python","color":"#3572a5","risk":72,"lastChange":"2026-11-05T14:01:22.000Z"},{"path":"src/utils.js","changes":97,"authors":6,"bytes":6851,"lang":"JavaScript","color":"#f1e05a","risk":69,"lastChange":"2026-11-03T10:03:57.000Z"},{"path":"src/components/Dashboard.tsx","changes":66,"authors":6,"bytes":11372,"lang":"TypeScript","color":"#3178c6","risk":54,"lastChange":"2026-11-06T16:22:21.000Z"},{"path":"src/components/Chart.tsx","changes":59,"authors":6,"bytes":9141,"lang":"TypeScript","color":"#3178c6","risk":50,"lastChange":"2026-11-03T10:03:57.000Z"},{"path":"src/api/client.ts","changes":59,"authors":6,"bytes":6432,"lang":"TypeScript","color":"#3178c6","risk":49,"lastChange":"2026-10-06T15:54:34.000Z"},{"path":"server/models.py","changes":58,"authors":6,"bytes":8325,"lang":"Python","color":"#3572a5","risk":49,"lastChange":"2026-11-03T10:03:57.000Z"},{"path":"tests/app.test.ts","changes":53,"authors":6,"bytes":5594,"lang":"TypeScript","color":"#3178c6","risk":46,"lastChange":"2026-11-05T09:21:38.000Z"},{"path":"server/utils.py","changes":50,"authors":6,"bytes":4759,"lang":"Python","color":"#3572a5","risk":44,"lastChange":"2026-10-27T16:56:36.000Z"},{"path":"styles/main.css","changes":43,"authors":6,"bytes":7308,"lang":"CSS","color":"#563d7c","risk":41,"lastChange":"2026-11-05T09:21:38.000Z"},{"path":"cmd/root.go","changes":40,"authors":6,"bytes":6543,"lang":"Go","color":"#00add8","risk":40,"lastChange":"2026-10-30T12:36:36.000Z"},{"path":"public/index.html","changes":39,"authors":6,"bytes":3926,"lang":"HTML","color":"#e34c26","risk":38,"lastChange":"2026-10-25T13:14:19.000Z"},{"path":"README.md","changes":33,"authors":6,"bytes":4177,"lang":"Markdown","color":"#083fa1","risk":35,"lastChange":"2026-10-21T15:03:23.000Z"},{"path":"styles/theme.scss","changes":31,"authors":6,"bytes":5610,"lang":"SCSS","color":"#c6538c","risk":35,"lastChange":"2026-10-29T16:09:56.000Z"},{"path":"docs/guide.md","changes":31,"authors":6,"bytes":4756,"lang":"Markdown","color":"#083fa1","risk":34,"lastChange":"2026-10-17T11:50:36.000Z"},{"path":"src/hooks/useData.ts","changes":31,"authors":6,"bytes":4616,"lang":"TypeScript","color":"#3178c6","risk":34,"lastChange":"2026-11-09T16:57:53.000Z"},{"path":"src/types.ts","changes":31,"authors":5,"bytes":3605,"lang":"TypeScript","color":"#3178c6","risk":34,"lastChange":"2026-10-12T10:53:08.000Z"},{"path":"tests/utils.test.js","changes":30,"authors":6,"bytes":3583,"lang":"JavaScript","color":"#f1e05a","risk":33,"lastChange":"2026-11-06T18:56:10.000Z"},{"path":".github/workflows/ci.yml","changes":29,"authors":6,"bytes":3184,"lang":"YAML","color":"#cb171e","risk":32,"lastChange":"2026-11-09T11:06:28.000Z"}],"languages":[{"name":"TypeScript","color":"#3178c6","bytes":61642,"files":8,"percent":41.8},{"name":"Python","color":"#3572a5","bytes":24578,"files":4,"percent":16.7},{"name":"JavaScript","color":"#f1e05a","bytes":10434,"files":2,"percent":7.1},{"name":"Markdown","color":"#083fa1","bytes":8933,"files":2,"percent":6.1},{"name":"CSS","color":"#563d7c","bytes":7308,"files":1,"percent":5},{"name":"Go","color":"#00add8","bytes":6543,"files":1,"percent":4.4},{"name":"SCSS","color":"#c6538c","bytes":5610,"files":1,"percent":3.8},{"name":"JSON","color":"#cbcb41","bytes":4723,"files":2,"percent":3.2},{"name":"HTML","color":"#e34c26","bytes":3926,"files":1,"percent":2.7},{"name":"SQL","color":"#e38c00","bytes":3793,"files":1,"percent":2.6},{"name":"YAML","color":"#cb171e","bytes":3184,"files":1,"percent":2.2},{"name":"Shell","color":"#89e051","bytes":2671,"files":1,"percent":1.8},{"name":"Other","color":"#6e7681","bytes":4239,"files":3,"percent":2.9}],"treemap":[{"path":"src/app.tsx","bytes":12067,"lang":"TypeScript","color":"#3178c6"},{"path":"src/components/Dashboard.tsx","bytes":11372,"lang":"TypeScript","color":"#3178c6"},{"path":"src/components/Chart.tsx","bytes":9141,"lang":"TypeScript","color":"#3178c6"},{"path":"server/main.py","bytes":8936,"lang":"Python","color":"#3572a5"},{"path":"src/index.ts","bytes":8815,"lang":"TypeScript","color":"#3178c6"},{"path":"server/models.py","bytes":8325,"lang":"Python","color":"#3572a5"},{"path":"styles/main.css","bytes":7308,"lang":"CSS","color":"#563d7c"},{"path":"src/utils.js","bytes":6851,"lang":"JavaScript","color":"#f1e05a"},{"path":"cmd/root.go","bytes":6543,"lang":"Go","color":"#00add8"},{"path":"src/api/client.ts","bytes":6432,"lang":"TypeScript","color":"#3178c6"},{"path":"styles/theme.scss","bytes":5610,"lang":"SCSS","color":"#c6538c"},{"path":"tests/app.test.ts","bytes":5594,"lang":"TypeScript","color":"#3178c6"},{"path":"server/utils.py","bytes":4759,"lang":"Python","color":"#3572a5"},{"path":"docs/guide.md","bytes":4756,"lang":"Markdown","color":"#083fa1"},{"path":"src/hooks/useData.ts","bytes":4616,"lang":"TypeScript","color":"#3178c6"},{"path":"README.md","bytes":4177,"lang":"Markdown","color":"#083fa1"},{"path":"public/index.html","bytes":3926,"lang":"HTML","color":"#e34c26"},{"path":"data/schema.sql","bytes":3793,"lang":"SQL","color":"#e38c00"},{"path":"src/types.ts","bytes":3605,"lang":"TypeScript","color":"#3178c6"},{"path":"tests/utils.test.js","bytes":3583,"lang":"JavaScript","color":"#f1e05a"},{"path":".github/workflows/ci.yml","bytes":3184,"lang":"YAML","color":"#cb171e"},{"path":"package.json","bytes":2880,"lang":"JSON","color":"#cbcb41"},{"path":"scripts/deploy.sh","bytes":2671,"lang":"Shell","color":"#89e051"},{"path":"server/config.py","bytes":2558,"lang":"Python","color":"#3572a5"},{"path":"tsconfig.json","bytes":1843,"lang":"JSON","color":"#3178c6"},{"path":"Makefile","bytes":1724,"lang":"Makefile","color":"#427819"},{"path":"Dockerfile","bytes":1489,"lang":"Dockerfile","color":"#384d54"},{"path":"assets/logo.svg","bytes":1026,"lang":"SVG","color":"#ff9900"}],"biggestFiles":[{"path":"src/app.tsx","bytes":12067,"lang":"TypeScript","color":"#3178c6"},{"path":"src/components/Dashboard.tsx","bytes":11372,"lang":"TypeScript","color":"#3178c6"},{"path":"src/components/Chart.tsx","bytes":9141,"lang":"TypeScript","color":"#3178c6"},{"path":"server/main.py","bytes":8936,"lang":"Python","color":"#3572a5"},{"path":"src/index.ts","bytes":8815,"lang":"TypeScript","color":"#3178c6"},{"path":"server/models.py","bytes":8325,"lang":"Python","color":"#3572a5"},{"path":"styles/main.css","bytes":7308,"lang":"CSS","color":"#563d7c"},{"path":"src/utils.js","bytes":6851,"lang":"JavaScript","color":"#f1e05a"},{"path":"cmd/root.go","bytes":6543,"lang":"Go","color":"#00add8"},{"path":"src/api/client.ts","bytes":6432,"lang":"TypeScript","color":"#3178c6"}]}</script>
+<script>
+(function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
+  var DATA = null;
+  try {
+    DATA = JSON.parse(document.getElementById('gitvitals-data').textContent);
+  } catch (err) { DATA = null; }
+  if (!DATA || typeof DATA !== 'object') {
+    document.getElementById('fatal').hidden = false;
+    return;
+  }
+
+  /* ================= helpers ================= */
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var PALETTE = ['#6366f1','#22d3ee','#3fb950','#d29922','#f85149','#bc8cff','#f778ba','#58a6ff','#ffa657','#7ee787','#79c0ff','#d2a8ff'];
+  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function num(v, d) { var n = Number(v); return isFinite(n) ? n : (d === undefined ? 0 : d); }
+  function arr(v) { return Array.isArray(v) ? v : []; }
+  function str(v, d) { return typeof v === 'string' ? v : (v == null ? (d || '') : String(v)); }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function $(id) { return document.getElementById(id); }
+
+  function h(tag, attrs, parent) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (attrs[k] == null) return;
+      if (k === 'text') e.textContent = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function s(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (attrs[k] == null) return;
+      if (k === 'text') e.textContent = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function fmtInt(v) { return Math.round(num(v)).toLocaleString('en-US'); }
+  function fmtBytes(v) {
+    var b = num(v);
+    if (b < 1024) return fmtInt(b) + ' B';
+    var u = ['KB','MB','GB','TB'], i = -1;
+    do { b /= 1024; i++; } while (b >= 1024 && i < u.length - 1);
+    return (b >= 100 ? Math.round(b).toString() : b.toFixed(1).replace(/\.0$/, '')) + ' ' + u[i];
+  }
+  function parseDate(v) {
+    if (!v) return null;
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function fmtDate(v) {
+    var d = parseDate(v);
+    if (!d) return '—';
+    return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+  }
+  function fmtDateTime(v) {
+    var d = parseDate(v);
+    if (!d) return '—';
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    return fmtDate(v) + ' · ' + p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) + ' UTC';
+  }
+  function isoDay(d) {
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getUTCFullYear() + '-' + p2(d.getUTCMonth() + 1) + '-' + p2(d.getUTCDate());
+  }
+  function monthLabel(lbl) {
+    var m = /^(\d{4})-(\d{2})/.exec(str(lbl));
+    if (!m) return str(lbl);
+    return MONTHS[num(m[2]) - 1] + ' ’' + m[1].slice(2);
+  }
+  function monthFull(lbl) {
+    var m = /^(\d{4})-(\d{2})/.exec(str(lbl));
+    if (!m) return str(lbl);
+    return MONTHS[num(m[2]) - 1] + ' ' + m[1];
+  }
+  function fmtAge(days) {
+    var d = num(days);
+    if (d <= 0) return '0 days';
+    if (d < 31) return Math.round(d) + (Math.round(d) === 1 ? ' day' : ' days');
+    if (d < 365) return (d / 30.44).toFixed(1) + ' mo';
+    return (d / 365.25).toFixed(1) + ' yr';
+  }
+  function safeColor(c, fb) {
+    c = str(c);
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(c)) return c;
+    if (/^(rgb|rgba|hsl|hsla)\(\s*[\d.]+\s*(,\s*[\d.]+%?\s*){2,3}\)$/i.test(c)) return c;
+    return fb || PALETTE[0];
+  }
+  function hexToRgb(hex) {
+    var m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(str(hex));
+    if (!m) return null;
+    var x = m[1];
+    if (x.length === 3) x = x[0] + x[0] + x[1] + x[1] + x[2] + x[2];
+    return [parseInt(x.slice(0, 2), 16), parseInt(x.slice(2, 4), 16), parseInt(x.slice(4, 6), 16)];
+  }
+  function lerpColor(a, b, t) {
+    var A = hexToRgb(a), B = hexToRgb(b);
+    if (!A || !B) return b;
+    var c = A.map(function (v, i) { return Math.round(v + (B[i] - v) * clamp(t, 0, 1)); });
+    return 'rgb(' + c.join(',') + ')';
+  }
+  function luminance(hex) {
+    var c = hexToRgb(hex);
+    if (!c) return 0;
+    var f = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
+  }
+  function inkOn(hex) { return luminance(hex) > 0.42 ? '#0d1117' : '#f0f6fc'; }
+  function hashStr(v) {
+    var x = 0, t = str(v);
+    for (var i = 0; i < t.length; i++) { x = (x * 31 + t.charCodeAt(i)) | 0; }
+    return Math.abs(x);
+  }
+  function riskColor(r) { return 'hsl(' + Math.round(120 * (1 - clamp(num(r), 0, 100) / 100)) + ',72%,48%)'; }
+  function healthColor(score) { return score >= 80 ? '#3fb950' : score >= 60 ? '#d29922' : '#f85149'; }
+  function niceCeil(v) {
+    v = Math.max(num(v), 1);
+    var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+    var n = v / mag;
+    var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+    return step * mag;
+  }
+  function countUp(el, to, fmt) {
+    to = num(to);
+    if (REDUCED || to === 0) { el.textContent = fmt ? fmt(to) : fmtInt(to); return; }
+    var t0 = null, dur = 900;
+    function frame(ts) {
+      if (!t0) t0 = ts;
+      var p = clamp((ts - t0) / dur, 0, 1);
+      var e = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt ? fmt(to * e) : fmtInt(to * e);
+      if (p < 1) requestAnimationFrame(frame);
+      else el.textContent = fmt ? fmt(to) : fmtInt(to);
+    }
+    requestAnimationFrame(frame);
+  }
+  function animateWidths(root) {
+    var fills = root.querySelectorAll('[data-w]');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        for (var i = 0; i < fills.length; i++) fills[i].style.width = fills[i].getAttribute('data-w');
+      });
+    });
+  }
+
+  /* ================= tooltip ================= */
+  var tip = $('tooltip');
+  function moveTip(evt) {
+    var pad = 14, r = tip.getBoundingClientRect();
+    var x = evt.clientX + pad, y = evt.clientY + pad;
+    if (x + r.width > window.innerWidth - 8) x = evt.clientX - r.width - pad;
+    if (y + r.height > window.innerHeight - 8) y = evt.clientY - r.height - pad;
+    tip.style.left = Math.max(6, x) + 'px';
+    tip.style.top = Math.max(6, y) + 'px';
+  }
+  function hideTip() { tip.classList.remove('on'); tip.setAttribute('aria-hidden', 'true'); }
+  function bindTip(el, getContent) {
+    el.addEventListener('mouseenter', function (evt) {
+      var c = getContent();
+      if (!c) return;
+      clear(tip);
+      h('div', { 'class': 'tip-title', text: str(c.title) }, tip);
+      arr(c.lines).forEach(function (ln) { h('div', { 'class': 'tip-line', text: str(ln) }, tip); });
+      tip.classList.add('on');
+      tip.setAttribute('aria-hidden', 'false');
+      moveTip(evt);
+    });
+    el.addEventListener('mousemove', moveTip);
+    el.addEventListener('mouseleave', hideTip);
+  }
+  window.addEventListener('scroll', hideTip, { passive: true });
+
+  /* ================= empty state ================= */
+  function empty(mount, msg) {
+    clear(mount);
+    var box = h('div', { 'class': 'empty' }, mount);
+    var ic = s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.6', 'stroke-linecap': 'round', 'aria-hidden': 'true' }, box);
+    s('circle', { cx: '12', cy: '12', r: '9', 'stroke-dasharray': '3 3.6' }, ic);
+    s('path', { d: 'M8.5 12h7' }, ic);
+    h('div', { text: msg }, box);
+  }
+  function statChip(parent, label, value) {
+    var c = h('span', { 'class': 'stat-chip' }, parent);
+    h('b', { text: value }, c);
+    h('span', { text: label }, c);
+    return c;
+  }
+
+  /* ================= data roots ================= */
+  var meta = DATA.meta || {};
+  var health = DATA.health || {};
+  var activity = DATA.activity || {};
+  var velocity = DATA.velocity || {};
+  var contributors = DATA.contributors || {};
+  var hotspots = arr(DATA.hotspots);
+  var languages = arr(DATA.languages);
+  var treemap = arr(DATA.treemap);
+  var biggestFiles = arr(DATA.biggestFiles);
+
+  /* ================= hero ================= */
+  function renderHero() {
+    document.title = str(meta.name, 'Repository') + ' · GitVitals';
+    $('repo-name').textContent = str(meta.name, 'Unnamed repository');
+    $('branch-name').textContent = str(meta.branch, '—');
+    $('generated-at').textContent = 'Generated ' + fmtDateTime(meta.generatedAt);
+    var first = parseDate(meta.firstCommit), last = parseDate(meta.lastCommit);
+    if (first && last) {
+      $('span-chip').hidden = false;
+      $('span-text').textContent = fmtDate(meta.firstCommit) + ' → ' + fmtDate(meta.lastCommit);
+    }
+
+    /* --- health gauge --- */
+    var mount = $('gauge-mount');
+    clear(mount);
+    var score = clamp(num(health.score), 0, 100);
+    var grade = str(health.grade, '—');
+    var color = healthColor(score);
+    var R = 70, C = 2 * Math.PI * R;
+    var svg = s('svg', { viewBox: '0 0 170 170', role: 'img', 'aria-label': 'Repository health: ' + Math.round(score) + ' out of 100, grade ' + grade }, mount);
+    var defs = s('defs', {}, svg);
+    var g = s('linearGradient', { id: 'gauge-grad', x1: '0', y1: '0', x2: '1', y2: '1' }, defs);
+    s('stop', { offset: '0', 'stop-color': color }, g);
+    s('stop', { offset: '1', 'stop-color': lerpColor(color, '#ffffff', 0.35) }, g);
+    s('circle', { cx: '85', cy: '85', r: R, fill: 'none', stroke: '#21262d', 'stroke-width': '12' }, svg);
+    var arc = s('circle', {
+      cx: '85', cy: '85', r: R, fill: 'none', stroke: 'url(#gauge-grad)', 'stroke-width': '12',
+      'stroke-linecap': 'round', 'stroke-dasharray': C, 'stroke-dashoffset': C,
+      transform: 'rotate(-90 85 85)', 'class': 'gauge-arc'
+    }, svg);
+    var scoreText = s('text', {
+      x: '85', y: '82', 'text-anchor': 'middle', 'class': 'svg-mono',
+      'font-size': '40', 'font-weight': '700', fill: '#e6edf3', text: '0'
+    }, svg);
+    s('text', { x: '85', y: '99', 'text-anchor': 'middle', 'font-size': '10', fill: '#6e7681', 'class': 'svg-mono', text: 'OUT OF 100' }, svg);
+    var pillW = Math.max(46, grade.length * 11 + 24);
+    s('rect', { x: 85 - pillW / 2, y: 108, width: pillW, height: 24, rx: '12', fill: color, 'fill-opacity': '0.14', stroke: color, 'stroke-opacity': '0.55' }, svg);
+    s('text', { x: '85', y: '124.5', 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '700', fill: color, 'class': 'svg-mono', text: grade }, svg);
+    $('gauge-label').textContent = str(health.label, 'Repository health');
+    $('gauge-label').style.color = color;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        arc.setAttribute('stroke-dashoffset', C * (1 - score / 100));
+      });
+    });
+    if (score <= 0) arc.setAttribute('opacity', '0');
+    countUp(scoreText, score, function (v) { return String(Math.round(v)); });
+
+    /* --- factors --- */
+    var fbox = $('factors');
+    clear(fbox);
+    var factors = arr(health.factors);
+    if (!factors.length) {
+      fbox.style.display = 'none';
+    } else {
+      fbox.style.display = '';
+      factors.forEach(function (f) {
+        var sc = clamp(num(f.score), 0, 100);
+        var col = healthColor(sc);
+        var row = h('div', { 'class': 'factor', title: str(f.detail) }, fbox);
+        var top = h('div', { 'class': 'factor-top' }, row);
+        h('span', { 'class': 'factor-name', text: str(f.label, str(f.key, 'Factor')) }, top);
+        var right = h('span', { 'class': 'factor-score' }, top);
+        right.textContent = Math.round(sc) + (f.weight != null ? ' · w' + (num(f.weight) <= 1 ? Math.round(num(f.weight) * 100) : Math.round(num(f.weight))) + '%' : '');
+        var track = h('div', { 'class': 'factor-track' }, row);
+        var fill = h('div', { 'class': 'factor-fill', 'data-w': sc + '%' }, track);
+        fill.style.background = col;
+        h('div', { 'class': 'factor-detail', text: str(f.detail, '—') }, row);
+      });
+      animateWidths(fbox);
+    }
+  }
+
+  /* ================= KPIs ================= */
+  function kpiIcon(kind, color) {
+    var wrapEl = h('span', { 'class': 'kpi-ico' });
+    wrapEl.style.color = color;
+    var svg = s('svg', { viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, wrapEl);
+    var paths = {
+      commit: function () { s('circle', { cx: '8', cy: '8', r: '3' }, svg); s('path', { d: 'M1.5 8H5M11 8h3.5' }, svg); },
+      users: function () { s('circle', { cx: '6', cy: '5', r: '2.3' }, svg); s('path', { d: 'M1.8 13c.5-2.2 2.1-3.4 4.2-3.4S9.7 10.8 10.2 13M11.3 3.9a2.3 2.3 0 0 1 0 4.3M12 9.8c1.3.5 2.1 1.6 2.4 3.2' }, svg); },
+      file: function () { s('path', { d: 'M9.5 1.8H4.2a1.4 1.4 0 0 0-1.4 1.4v9.6a1.4 1.4 0 0 0 1.4 1.4h7.6a1.4 1.4 0 0 0 1.4-1.4V5.5Z' }, svg); s('path', { d: 'M9.5 1.8v3.7h3.7M5.5 9h5M5.5 11.5h5' }, svg); },
+      db: function () { s('ellipse', { cx: '8', cy: '3.8', rx: '5.7', ry: '2.2' }, svg); s('path', { d: 'M2.3 3.8v8.4c0 1.2 2.6 2.2 5.7 2.2s5.7-1 5.7-2.2V3.8M2.3 8c0 1.2 2.6 2.2 5.7 2.2S13.7 9.2 13.7 8' }, svg); },
+      clock: function () { s('circle', { cx: '8', cy: '8', r: '6.2' }, svg); s('path', { d: 'M8 4.6V8l2.3 1.6' }, svg); },
+      bus: function () { s('path', { d: 'M8 1.6 13.6 4v4c0 3.2-2.3 5.3-5.6 6.4C4.7 13.3 2.4 11.2 2.4 8V4Z' }, svg); s('path', { d: 'M5.6 8.1 7.3 9.8l3.2-3.4' }, svg); }
+    };
+    (paths[kind] || paths.commit)();
+    return wrapEl;
+  }
+  function renderKpis() {
+    var box = $('kpis');
+    clear(box);
+    var bf = num(contributors.busFactor);
+    var defs = [
+      { label: 'Commits', icon: 'commit', color: '#a5b4fc', value: num(meta.totalCommits), fmt: fmtInt, sub: num(meta.spanDays) > 0 ? 'across ' + fmtInt(meta.spanDays) + ' days' : 'in this repository' },
+      { label: 'Contributors', icon: 'users', color: '#7ee787', value: num(meta.totalContributors), fmt: fmtInt, sub: 'people behind the code' },
+      { label: 'Files', icon: 'file', color: '#79c0ff', value: num(meta.totalFiles), fmt: fmtInt, sub: 'tracked in HEAD' },
+      { label: 'Size', icon: 'db', color: '#d2a8ff', value: num(meta.totalBytes), fmt: fmtBytes, sub: 'total tracked bytes' },
+      { label: 'Age', icon: 'clock', color: '#ffa657', value: num(meta.ageDays), fmt: fmtAge, sub: (parseDate(meta.firstCommit) ? fmtDate(meta.firstCommit) : '—') + ' → ' + (parseDate(meta.lastCommit) ? fmtDate(meta.lastCommit) : '—') },
+      { label: 'Bus factor', icon: 'bus', color: bf <= 1 ? '#ff7b72' : bf <= 2 ? '#e3b341' : '#7ee787', value: bf, fmt: fmtInt, sub: str(contributors.busFactorLabel, 'key-person risk') }
+    ];
+    defs.forEach(function (d) {
+      var card = h('div', { 'class': 'kpi' }, box);
+      var top = h('div', { 'class': 'kpi-top' }, card);
+      top.appendChild(kpiIcon(d.icon, d.color));
+      h('span', { 'class': 'kpi-label', text: d.label }, top);
+      var val = h('div', { 'class': 'kpi-value', text: '0' }, card);
+      var sub = h('div', { 'class': 'kpi-sub', text: d.sub, title: d.sub }, card);
+      countUp(val, d.value, d.fmt);
+      void sub;
+    });
+  }
+
+  /* ================= activity heatmap ================= */
+  function renderHeatmap() {
+    var mount = $('heatmap-mount');
+    var cal = arr(activity.calendar).filter(function (c) { return c && /^\d{4}-\d{2}-\d{2}$/.test(str(c.date)); });
+    var stats = $('activity-stats');
+    clear(stats);
+    statChip(stats, 'active days', fmtInt(activity.activeDays));
+    statChip(stats, 'current streak', fmtInt(activity.currentStreak) + 'd');
+    statChip(stats, 'longest streak', fmtInt(activity.longestStreak) + 'd');
+    statChip(stats, 'avg / active day', num(activity.avgPerActiveDay).toFixed(1));
+
+    if (!cal.length) {
+      empty(mount, 'No commit activity recorded yet — the calendar will fill in as the repo grows.');
+      $('activity-range').textContent = '';
+      $('heat-legend').hidden = true;
+      return;
+    }
+    $('heat-legend').hidden = false;
+    var counts = new Map();
+    var maxDay = num(activity.maxDay);
+    cal.forEach(function (c) {
+      var v = num(c.count);
+      counts.set(c.date, v);
+      if (v > maxDay) maxDay = v;
+    });
+    var start = parseDate(str(activity.calendarStart) + 'T00:00:00Z') || parseDate(cal[0].date + 'T00:00:00Z');
+    var end = parseDate(str(activity.calendarEnd) + 'T00:00:00Z') || parseDate(cal[cal.length - 1].date + 'T00:00:00Z');
+    if (!start || !end || end < start) { empty(mount, 'Activity dates are invalid.'); return; }
+
+    var gridStart = new Date(start.getTime());
+    gridStart.setUTCDate(gridStart.getUTCDate() - gridStart.getUTCDay());
+    var dayMs = 86400000;
+    var weeks = Math.floor((end.getTime() - gridStart.getTime()) / dayMs / 7) + 1;
+    var cell = 12, step = 15, left = 30, top = 18;
+    var W = left + weeks * step + 2, H = top + 7 * step + 2;
+    var LEVELS = ['#151b23', '#0e4429', '#006d32', '#26a641', '#39d353'];
+
+    clear(mount);
+    var svg = s('svg', {
+      viewBox: '0 0 ' + W + ' ' + H, 'class': 'chart chart-center', role: 'img',
+      'aria-label': 'Commit calendar from ' + str(activity.calendarStart) + ' to ' + str(activity.calendarEnd) + '; ' + fmtInt(activity.activeDays) + ' active days.',
+      style: 'max-width:' + W + 'px'
+    }, mount);
+
+    var lastLabelX = -999, prevMonth = -1;
+    for (var w = 0; w < weeks; w++) {
+      var d0 = new Date(gridStart.getTime() + w * 7 * dayMs);
+      var m = d0.getUTCMonth();
+      if (m !== prevMonth) {
+        var lx = left + w * step;
+        if (lx - lastLabelX >= 26 || w === 0) {
+          s('text', { x: lx, y: 10, 'class': 'ax-label-sm', text: MONTHS[m] }, svg);
+          lastLabelX = lx;
+        }
+        prevMonth = m;
+      }
+    }
+    [[1, 'Mon'], [3, 'Wed'], [5, 'Fri']].forEach(function (p) {
+      s('text', { x: 0, y: top + p[0] * step + cell - 2.5, 'class': 'ax-label-sm', text: p[1] }, svg);
+    });
+
+    var total = 0;
+    for (var wi = 0; wi < weeks; wi++) {
+      for (var r = 0; r < 7; r++) {
+        var day = new Date(gridStart.getTime() + (wi * 7 + r) * dayMs);
+        if (day < start || day > end) continue;
+        var key = isoDay(day);
+        var count = counts.get(key) || 0;
+        total += count;
+        var level = count <= 0 || maxDay <= 0 ? 0 : clamp(Math.ceil(4 * Math.sqrt(count / maxDay)), 1, 4);
+        var rect = s('rect', {
+          x: left + wi * step, y: top + r * step, width: cell, height: cell, rx: '2.6',
+          fill: LEVELS[level], 'class': 'hm-cell' + (level === 0 ? ' hm-0' : '')
+        }, svg);
+        (function (k, c, d) {
+          bindTip(rect, function () {
+            return {
+              title: c > 0 ? fmtInt(c) + (c === 1 ? ' commit' : ' commits') : 'No commits',
+              lines: [DOW[(d.getUTCDay() + 6) % 7] + ', ' + fmtDate(k)]
+            };
+          });
+        })(key, count, day);
+      }
+    }
+    $('activity-sub').textContent = fmtInt(total) + ' commits in the last ' + (weeks >= 52 ? '12 months' : weeks === 1 ? '1 week' : weeks + ' weeks');
+    $('activity-range').textContent = fmtDate(activity.calendarStart) + ' — ' + fmtDate(activity.calendarEnd);
+  }
+
+  /* ================= punch card ================= */
+  function renderPunch() {
+    var mount = $('punch-mount');
+    var pc = arr(activity.punchcard).filter(function (p) { return p && num(p.count) > 0; });
+    if (!pc.length) {
+      empty(mount, 'No hourly commit distribution yet.');
+      return;
+    }
+    var max = num(activity.punchMax);
+    pc.forEach(function (p) { if (num(p.count) > max) max = num(p.count); });
+    if (max <= 0) { empty(mount, 'No hourly commit distribution yet.'); return; }
+    var map = new Map();
+    pc.forEach(function (p) {
+      var k = clamp(Math.round(num(p.dow)), 0, 6) * 24 + clamp(Math.round(num(p.hour)), 0, 23);
+      map.set(k, (map.get(k) || 0) + num(p.count));
+    });
+    var step = 26, left = 36, top = 10;
+    var W = left + 24 * step + 4, H = top + 7 * step + 22;
+    clear(mount);
+    var svg = s('svg', {
+      viewBox: '0 0 ' + W + ' ' + H, 'class': 'chart chart-center', role: 'img',
+      style: 'max-width:920px',
+      'aria-label': 'Punch card of commits by weekday (Monday to Sunday) and hour of day (0 to 23, UTC). Busiest cell has ' + fmtInt(max) + ' commits.'
+    }, mount);
+    for (var r = 0; r < 7; r++) {
+      s('text', { x: left - 9, y: top + r * step + step / 2 + 3.5, 'text-anchor': 'end', 'class': 'ax-label', text: DOW[r] }, svg);
+    }
+    for (var hh = 0; hh < 24; hh += 3) {
+      s('text', { x: left + hh * step + step / 2, y: H - 6, 'text-anchor': 'middle', 'class': 'ax-label-sm svg-mono', text: (hh < 10 ? '0' : '') + hh }, svg);
+    }
+    for (var dow = 0; dow < 7; dow++) {
+      for (var hour = 0; hour < 24; hour++) {
+        var count = map.get(dow * 24 + hour) || 0;
+        var t = count / max;
+        var cx = left + hour * step + step / 2, cy = top + dow * step + step / 2;
+        var dot = s('circle', {
+          cx: cx, cy: cy,
+          r: count > 0 ? 2.4 + 8.6 * Math.sqrt(t) : 1.6,
+          fill: count > 0 ? lerpColor('#6366f1', '#22d3ee', t) : '#21262d',
+          opacity: count > 0 ? 0.55 + 0.45 * t : 1,
+          'class': 'punch-dot'
+        }, svg);
+        (function (c, d, hr) {
+          bindTip(dot, function () {
+            return {
+              title: c > 0 ? fmtInt(c) + (c === 1 ? ' commit' : ' commits') : 'No commits',
+              lines: [DOW[d] + ' · ' + (hr < 10 ? '0' : '') + hr + ':00–' + (hr < 10 ? '0' : '') + hr + ':59 UTC']
+            };
+          });
+        })(count, dow, hour);
+      }
+    }
+    var busiest = pc.reduce(function (a, b) { return num(b.count) > num(a.count) ? b : a; });
+    $('punch-sub').textContent = 'Peak: ' + DOW[clamp(Math.round(num(busiest.dow)), 0, 6)] + ' at ' + (num(busiest.hour) < 10 ? '0' : '') + Math.round(num(busiest.hour)) + ':00 UTC · ' + fmtInt(max) + ' commits';
+  }
+
+  /* ================= velocity ================= */
+  function renderVelocity() {
+    var mount = $('velocity-mount');
+    var series = arr(velocity.series).filter(function (p) { return p && str(p.label); });
+    var side = $('velocity-side');
+    clear(side);
+    var trend = num(velocity.trend);
+    if (series.length) {
+      var cls = trend > 0.05 ? 'badge trend-up' : trend < -0.05 ? 'badge trend-down' : 'badge';
+      var arrow = trend > 0.05 ? '▲' : trend < -0.05 ? '▼' : '→';
+      var b = h('span', { 'class': cls, title: 'Commit velocity trend' }, side);
+      b.textContent = arrow + ' ' + Math.abs(trend).toFixed(1) + '%';
+    }
+    if (!series.length) {
+      empty(mount, 'No monthly velocity data yet.');
+      $('velocity-sub').textContent = 'Commits per month';
+      $('velocity-stats').hidden = true;
+      return;
+    }
+    var n = series.length;
+    var W = 720, H = 280, l = 46, r = 18, t = 20, bo = 34;
+    var iw = W - l - r, ih = H - t - bo;
+    var maxC = 0;
+    series.forEach(function (p) { maxC = Math.max(maxC, num(p.commits)); });
+    var top = niceCeil(maxC);
+    function X(i) { return n === 1 ? l + iw / 2 : l + i * (iw / (n - 1)); }
+    function Y(v) { return t + ih * (1 - clamp(num(v), 0, top) / top); }
+
+    clear(mount);
+    var svg = s('svg', {
+      viewBox: '0 0 ' + W + ' ' + H, 'class': 'chart', role: 'img',
+      'aria-label': 'Monthly commit velocity across ' + n + ' months; peak ' + fmtInt(maxC) + ' commits.'
+    }, mount);
+    var defs = s('defs', {}, svg);
+    var lg = s('linearGradient', { id: 'vel-line', x1: '0', y1: '0', x2: '1', y2: '0' }, defs);
+    s('stop', { offset: '0', 'stop-color': '#6366f1' }, lg);
+    s('stop', { offset: '1', 'stop-color': '#22d3ee' }, lg);
+    var ag = s('linearGradient', { id: 'vel-area', x1: '0', y1: '0', x2: '0', y2: '1' }, defs);
+    s('stop', { offset: '0', 'stop-color': '#6366f1', 'stop-opacity': '0.34' }, ag);
+    s('stop', { offset: '1', 'stop-color': '#6366f1', 'stop-opacity': '0.02' }, ag);
+
+    for (var k = 0; k <= 4; k++) {
+      var val = top * k / 4, yy = Y(val);
+      s('line', { x1: l, y1: yy, x2: W - r, y2: yy, 'class': 'grid-line' }, svg);
+      var tickLbl = (val < 10 && val % 1 !== 0) ? val.toFixed(1) : fmtInt(val);
+      s('text', { x: l - 8, y: yy + 3.5, 'text-anchor': 'end', 'class': 'ax-label svg-mono', text: tickLbl }, svg);
+    }
+
+    var peakIdx = 0;
+    series.forEach(function (p, i) { if (num(p.commits) > num(series[peakIdx].commits)) peakIdx = i; });
+
+    if (n > 1) {
+      var line = '', area = '';
+      series.forEach(function (p, i) {
+        var cmd = (i === 0 ? 'M' : 'L') + X(i).toFixed(2) + ' ' + Y(p.commits).toFixed(2);
+        line += cmd + ' ';
+        area += cmd + ' ';
+      });
+      area += 'L' + X(n - 1).toFixed(2) + ' ' + (t + ih) + ' L' + X(0).toFixed(2) + ' ' + (t + ih) + ' Z';
+      s('path', { d: area, fill: 'url(#vel-area)' }, svg);
+      s('path', { d: line, fill: 'none', stroke: 'url(#vel-line)', 'stroke-width': '2.5', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+    }
+
+    var labelEvery = Math.max(1, Math.ceil(n / 8));
+    series.forEach(function (p, i) {
+      if (i % labelEvery === 0 || i === n - 1) {
+        if (i === n - 1 && (n - 1) % labelEvery !== 0 && (n - 1) - Math.floor((n - 1) / labelEvery) * labelEvery < labelEvery * 0.55) {
+          var prevI = Math.floor((n - 1) / labelEvery) * labelEvery;
+          var prev = svg.querySelector('text[data-vx="' + prevI + '"]');
+          if (prev) prev.remove();
+        }
+        s('text', { x: X(i), y: H - 12, 'text-anchor': 'middle', 'class': 'ax-label svg-mono', 'data-vx': i, text: monthLabel(p.label) }, svg);
+      }
+    });
+
+    /* peak marker */
+    var px = X(peakIdx), py = Y(series[peakIdx].commits);
+    s('circle', { cx: px, cy: py, r: '8.5', fill: '#22d3ee', 'fill-opacity': '0.18' }, svg);
+    s('circle', { cx: px, cy: py, r: '4', fill: '#22d3ee', stroke: '#0d1117', 'stroke-width': '1.6' }, svg);
+    var peakAnchor = px > W - 90 ? 'end' : px < l + 40 ? 'start' : 'middle';
+    s('text', {
+      x: clamp(px, l + 4, W - r - 4), y: Math.max(py - 12, 12), 'text-anchor': peakAnchor,
+      'class': 'ax-label svg-mono', fill: '#79e2f2', 'font-weight': '700',
+      text: '▲ ' + fmtInt(series[peakIdx].commits)
+    }, svg);
+
+    /* hover targets */
+    series.forEach(function (p, i) {
+      var bw = n === 1 ? iw : iw / (n - 1);
+      var hit = s('rect', {
+        x: clamp(X(i) - bw / 2, l - 6, W - r), y: t, width: Math.min(bw, W - r - clamp(X(i) - bw / 2, l - 6, W - r)), height: ih,
+        'class': 'vel-hit'
+      }, svg);
+      s('circle', { cx: X(i), cy: Y(p.commits), r: '3.6', fill: '#e6edf3', stroke: '#6366f1', 'stroke-width': '1.6', 'class': 'vel-dot' }, svg);
+      bindTip(hit, function () {
+        return {
+          title: monthFull(p.label),
+          lines: [
+            fmtInt(p.commits) + ' commits',
+            '+' + fmtInt(p.additions) + ' additions · −' + fmtInt(p.deletions) + ' deletions'
+          ]
+        };
+      });
+    });
+
+    var peak = velocity.peak && str(velocity.peak.label) ? velocity.peak : { label: series[peakIdx].label, commits: num(series[peakIdx].commits) };
+    $('velocity-sub').textContent = n + (n === 1 ? ' month' : ' months') + ' · peak ' + monthLabel(peak.label) + ' (' + fmtInt(peak.commits) + ')';
+    var vstats = $('velocity-stats');
+    clear(vstats);
+    vstats.hidden = false;
+    var adds = series.reduce(function (sm, p) { return sm + num(p.additions); }, 0);
+    var dels = series.reduce(function (sm, p) { return sm + num(p.deletions); }, 0);
+    var csum = series.reduce(function (sm, p) { return sm + num(p.commits); }, 0);
+    statChip(vstats, 'additions', '+' + fmtInt(adds));
+    statChip(vstats, 'deletions', (dels > 0 ? '−' : '') + fmtInt(dels));
+    statChip(vstats, 'avg / month', (csum / n).toFixed(1));
+  }
+
+  /* ================= contributors ================= */
+  function renderContributors() {
+    var mount = $('contrib-mount');
+    var list = arr(contributors.list).slice().sort(function (a, b) { return num(b.commits) - num(a.commits); });
+    var total = num(contributors.total, list.length);
+    var bf = num(contributors.busFactor);
+    var side = $('contrib-side');
+    clear(side);
+    var bfCls = bf <= 0 ? 'badge' : bf <= 1 ? 'badge red' : bf <= 2 ? 'badge amber' : 'badge green';
+    var bfBadge = h('span', { 'class': bfCls, title: str(contributors.busFactorLabel, 'Bus factor: minimum people whose loss would stall the project') }, side);
+    bfBadge.textContent = 'Bus factor ' + fmtInt(bf);
+    $('contrib-sub').textContent = str(contributors.busFactorLabel, total + ' contributors');
+
+    if (!list.length) {
+      empty(mount, 'No contributors yet — be the first to commit.');
+      $('contrib-note').hidden = true;
+      return;
+    }
+    clear(mount);
+    var topN = list.slice(0, 10);
+    var maxC = Math.max(num(topN[0].commits), 1);
+    var totalCommits = num(meta.totalCommits) || list.reduce(function (sm, c) { return sm + num(c.commits); }, 0) || 1;
+    topN.forEach(function (c, i) {
+      var name = str(c.name, 'Unknown');
+      var commits = num(c.commits);
+      var pct = c.percent != null ? num(c.percent) : commits / totalCommits * 100;
+      var row = h('div', { 'class': 'contrib-row' }, mount);
+      var av = h('div', { 'class': 'avatar' }, row);
+      var hue = hashStr(name) % 360;
+      av.style.background = 'linear-gradient(135deg,hsl(' + hue + ',58%,46%),hsl(' + ((hue + 42) % 360) + ',62%,38%))';
+      var parts = name.trim().split(/\s+/);
+      var initials = ((parts[0] || '?')[0] || '?') + (parts.length > 1 ? (parts[parts.length - 1][0] || '') : '');
+      av.textContent = initials.toUpperCase();
+      av.setAttribute('aria-hidden', 'true');
+      var mid = h('div', { 'class': 'contrib-mid' }, row);
+      var nm = h('div', { 'class': 'contrib-name', text: name, title: name }, mid);
+      void nm;
+      var track = h('div', { 'class': 'bar-track' }, mid);
+      h('div', { 'class': 'bar-fill', 'data-w': clamp(commits / maxC * 100, 0, 100) + '%' }, track);
+      var right = h('div', { 'class': 'contrib-right' }, row);
+      h('div', { 'class': 'contrib-commits', text: fmtInt(commits) }, right);
+      h('div', { 'class': 'contrib-pct', text: pct.toFixed(1) + '%' }, right);
+      bindTip(row, function () {
+        return {
+          title: name,
+          lines: [
+            fmtInt(commits) + ' commits · ' + pct.toFixed(1) + '% of total',
+            '+' + fmtInt(c.additions) + ' −' + fmtInt(c.deletions) + ' lines',
+            fmtInt(c.activeDays) + ' active days',
+            fmtDate(c.firstCommit) + ' → ' + fmtDate(c.lastCommit)
+          ]
+        };
+      });
+      void i;
+    });
+    animateWidths(mount);
+    var note = $('contrib-note');
+    var topShare = num(contributors.topSharePercent, topN[0].percent != null ? num(topN[0].percent) : num(topN[0].commits) / totalCommits * 100);
+    note.hidden = false;
+    note.textContent = 'Top contributor owns ' + topShare.toFixed(1) + '% of all commits' + (list.length > 10 ? ' · showing top 10 of ' + list.length : '') + '.';
+  }
+
+  /* ================= hotspots ================= */
+  function renderHotspots() {
+    var mount = $('hotspots-mount');
+    var hs = hotspots.slice().sort(function (a, b) { return num(b.changes) - num(a.changes); }).slice(0, 12);
+    $('hotspots-sub').textContent = hotspots.length ? 'Top ' + hs.length + ' of ' + hotspots.length + ' files by churn' : 'Most-churned files';
+    if (!hs.length) {
+      empty(mount, 'No file hotspots — churn appears once files change over time.');
+      return;
+    }
+    clear(mount);
+    var scroll = h('div', { 'class': 'table-scroll' }, mount);
+    var table = h('table', { 'class': 'hs' }, scroll);
+    var cg = h('colgroup', {}, table);
+    h('col', { 'class': 'c-path' }, cg);
+    h('col', { 'class': 'c-changes' }, cg);
+    h('col', { 'class': 'c-authors' }, cg);
+    h('col', { 'class': 'c-size' }, cg);
+    h('col', { 'class': 'c-risk' }, cg);
+    var thead = h('thead', {}, table);
+    var tr = h('tr', {}, thead);
+    ['File', 'Changes', 'Authors', 'Size', 'Risk'].forEach(function (t) { h('th', { text: t, scope: 'col' }, tr); });
+    var tbody = h('tbody', {}, table);
+    hs.forEach(function (f) {
+      var path = str(f.path, '(unknown)');
+      var row = h('tr', {}, tbody);
+      var tdP = h('td', {}, row);
+      var pspan = h('span', { 'class': 'hs-path', title: path }, tdP);
+      var slash = path.lastIndexOf('/');
+      if (slash >= 0) {
+        h('span', { 'class': 'hs-dir', text: path.slice(0, slash + 1) }, pspan);
+        h('span', { 'class': 'hs-base', text: path.slice(slash + 1) }, pspan);
+      } else {
+        h('span', { 'class': 'hs-base', text: path }, pspan);
+      }
+      h('td', { 'class': 'hs-num', text: fmtInt(f.changes) }, row);
+      h('td', { 'class': 'hs-num', text: fmtInt(f.authors) }, row);
+      h('td', { 'class': 'hs-size', text: fmtBytes(f.bytes) }, row);
+      var tdR = h('td', {}, row);
+      var rc = h('div', { 'class': 'risk-cell' }, tdR);
+      var rt = h('div', { 'class': 'risk-track' }, rc);
+      var rf = h('div', { 'class': 'risk-fill', 'data-w': clamp(num(f.risk), 0, 100) + '%' }, rt);
+      rf.style.background = riskColor(f.risk);
+      h('span', { 'class': 'risk-num', text: String(Math.round(clamp(num(f.risk), 0, 100))) }, rc);
+      bindTip(row, function () {
+        return {
+          title: path,
+          lines: [
+            fmtInt(f.changes) + ' changes · ' + fmtInt(f.authors) + ' authors · ' + fmtBytes(f.bytes),
+            str(f.lang, 'Unknown language') + ' · risk ' + Math.round(num(f.risk)) + '/100',
+            'Last change ' + fmtDate(f.lastChange)
+          ]
+        };
+      });
+    });
+    animateWidths(mount);
+  }
+
+  /* ================= languages ================= */
+  function renderLanguages() {
+    var mount = $('langs-mount');
+    var langs = languages.filter(function (l) { return l && (num(l.bytes) > 0 || num(l.percent) > 0); });
+    if (!langs.length) {
+      empty(mount, 'No language breakdown available.');
+      $('langs-sub').textContent = 'Share of repository bytes';
+      return;
+    }
+    var totalBytes = langs.reduce(function (sm, l) { return sm + num(l.bytes); }, 0);
+    var totalFiles = langs.reduce(function (sm, l) { return sm + num(l.files); }, 0);
+    $('langs-sub').textContent = langs.length + (langs.length === 1 ? ' language' : ' languages') + ' · ' + fmtInt(totalFiles) + ' files · ' + fmtBytes(totalBytes);
+
+    clear(mount);
+    var body = h('div', { 'class': 'langs-body' }, mount);
+    var dwrap = h('div', { 'class': 'donut-wrap' }, body);
+    var svg = s('svg', {
+      viewBox: '0 0 184 184', role: 'img',
+      'aria-label': 'Donut chart of language share by bytes; ' + langs.length + ' languages, ' + fmtBytes(totalBytes) + ' total.'
+    }, dwrap);
+    var R = 70, C = 2 * Math.PI * R;
+    var grp = s('g', { transform: 'rotate(-90 92 92)' }, svg);
+    s('circle', { cx: '92', cy: '92', r: R, fill: 'none', stroke: '#21262d', 'stroke-width': '26' }, grp);
+    var acc = 0, segs = [];
+    langs.forEach(function (l, i) {
+      var frac = totalBytes > 0 ? num(l.bytes) / totalBytes : num(l.percent) / 100;
+      if (frac <= 0) return;
+      var segLen = frac * C;
+      var gap = langs.length > 1 ? Math.min(2.6, segLen * 0.18) : 0;
+      var drawn = Math.max(segLen - gap, 0.4);
+      var color = safeColor(l.color, PALETTE[i % PALETTE.length]);
+      var seg = s('circle', {
+        cx: '92', cy: '92', r: R, fill: 'none', stroke: color, 'stroke-width': '26',
+        'stroke-dasharray': drawn + ' ' + (C - drawn), 'stroke-dashoffset': -acc,
+        'class': 'donut-seg'
+      }, grp);
+      segs.push(seg);
+      acc += segLen;
+      var pct = l.percent != null ? num(l.percent) : frac * 100;
+      bindTip(seg, function () {
+        return { title: str(l.name, 'Unknown'), lines: [pct.toFixed(1) + '% · ' + fmtBytes(l.bytes) + ' · ' + fmtInt(l.files) + ' files'] };
+      });
+    });
+    s('text', { x: '92', y: '88', 'text-anchor': 'middle', 'class': 'svg-mono', 'font-size': '19', 'font-weight': '700', fill: '#e6edf3', text: fmtBytes(totalBytes) }, svg);
+    s('text', { x: '92', y: '106', 'text-anchor': 'middle', 'font-size': '10', fill: '#6e7681', text: 'total size' }, svg);
+
+    var legend = h('div', { 'class': 'lang-legend' }, body);
+    langs.forEach(function (l, i) {
+      var frac = totalBytes > 0 ? num(l.bytes) / totalBytes : num(l.percent) / 100;
+      var pct = l.percent != null ? num(l.percent) : frac * 100;
+      var color = safeColor(l.color, PALETTE[i % PALETTE.length]);
+      var row = h('div', { 'class': 'lang-row' }, legend);
+      var dot = h('span', { 'class': 'lang-dot' }, row);
+      dot.style.background = color;
+      h('span', { 'class': 'lang-name', text: str(l.name, 'Unknown'), title: str(l.name) }, row);
+      h('span', { 'class': 'lang-pct', text: pct.toFixed(1) + '%' }, row);
+      h('span', { 'class': 'lang-bytes', text: fmtBytes(l.bytes) }, row);
+      if (segs[i]) {
+        row.addEventListener('mouseenter', function () { segs[i].classList.add('hl'); });
+        row.addEventListener('mouseleave', function () { segs[i].classList.remove('hl'); });
+        bindTip(row, function () {
+          return { title: str(l.name, 'Unknown'), lines: [pct.toFixed(1) + '% · ' + fmtBytes(l.bytes) + ' · ' + fmtInt(l.files) + ' files'] };
+        });
+      }
+    });
+  }
+
+  /* ================= treemap (squarified) ================= */
+  function worstRatio(row, sum, side, scale) {
+    var sArea = sum * scale, mx = 0, mn = Infinity;
+    row.forEach(function (it) { var a = it.value * scale; if (a > mx) mx = a; if (a < mn) mn = a; });
+    if (mn <= 0 || sArea <= 0) return Infinity;
+    var s2 = sArea * sArea, w2 = side * side;
+    return Math.max(w2 * mx / s2, s2 / (w2 * mn));
+  }
+  function squarify(items, x, y, w, hgt) {
+    var out = [];
+    var total = items.reduce(function (sm, it) { return sm + it.value; }, 0);
+    if (total <= 0 || w <= 0 || hgt <= 0) return out;
+    var rest = items.slice(), rx = x, ry = y, rw = w, rh = hgt, rtotal = total;
+    while (rest.length && rw > 0.001 && rh > 0.001) {
+      if (rest.length === 1) {
+        out.push(Object.assign({}, rest[0], { x: rx, y: ry, w: rw, h: rh }));
+        break;
+      }
+      var side = Math.min(rw, rh), scale = (rw * rh) / rtotal;
+      var row = [rest[0]], rowSum = rest[0].value;
+      var worst = worstRatio(row, rowSum, side, scale);
+      var i = 1;
+      for (; i < rest.length; i++) {
+        var cs = rowSum + rest[i].value;
+        var cw = worstRatio(row.concat(rest[i]), cs, side, scale);
+        if (cw <= worst) { row.push(rest[i]); rowSum = cs; worst = cw; }
+        else break;
+      }
+      var rowArea = rowSum * scale;
+      if (rw >= rh) {
+        var sw = rowArea / rh, cy = ry;
+        row.forEach(function (it) {
+          var ih2 = (it.value * scale) / sw;
+          out.push(Object.assign({}, it, { x: rx, y: cy, w: sw, h: ih2 }));
+          cy += ih2;
+        });
+        rx += sw; rw -= sw;
+      } else {
+        var sh = rowArea / rw, cx = rx;
+        row.forEach(function (it) {
+          var iw2 = (it.value * scale) / sh;
+          out.push(Object.assign({}, it, { x: cx, y: ry, w: iw2, h: sh }));
+          cx += iw2;
+        });
+        ry += sh; rh -= sh;
+      }
+      rest = rest.slice(row.length);
+      rtotal -= rowSum;
+    }
+    return out;
+  }
+  function renderTreemap() {
+    var mount = $('treemap-mount');
+    var items = treemap
+      .filter(function (t) { return t && num(t.bytes) > 0; })
+      .map(function (t) { return { path: str(t.path, '(unknown)'), lang: str(t.lang, ''), color: t.color, value: num(t.bytes) }; })
+      .sort(function (a, b) { return b.value - a.value; });
+    if (!items.length) {
+      empty(mount, 'No file-size data to map yet.');
+    } else {
+      clear(mount);
+      var W = 900, H = 380;
+      var rects = squarify(items, 0, 0, W, H);
+      var svg = s('svg', {
+        viewBox: '0 0 ' + W + ' ' + H, role: 'img',
+        'aria-label': 'Squarified treemap of ' + items.length + ' files; rectangle area is file size, color is language.'
+      }, mount);
+      var langColors = {};
+      languages.forEach(function (l, i) { langColors[str(l.name)] = safeColor(l.color, PALETTE[i % PALETTE.length]); });
+      rects.forEach(function (r, i) {
+        var rw = Math.max(r.w - 2, 0), rh = Math.max(r.h - 2, 0);
+        if (rw <= 0.5 || rh <= 0.5) return;
+        var color = langColors[r.lang] || safeColor(r.color, PALETTE[hashStr(r.lang || r.path) % PALETTE.length]);
+        var rect = s('rect', {
+          x: r.x + 1, y: r.y + 1, width: rw, height: rh, rx: '3.5',
+          fill: color, 'fill-opacity': '0.92', 'class': 'tm-cell'
+        }, svg);
+        var base = r.path.split('/').pop() || r.path;
+        var ink = inkOn(/^#/.test(color) ? color : '#0d1117');
+        if (rw >= 74 && rh >= 30) {
+          var maxChars = Math.floor((rw - 14) / 6.9);
+          var label = base.length > maxChars ? base.slice(0, Math.max(maxChars - 1, 1)) + '…' : base;
+          s('text', { x: r.x + 8, y: r.y + 19, 'class': 'tm-label', 'font-size': '12', fill: ink, text: label }, svg);
+          if (rh >= 50 && rw >= 74) {
+            s('text', { x: r.x + 8, y: r.y + 35, 'class': 'tm-sub', 'font-size': '10', fill: ink, 'fill-opacity': '0.72', text: fmtBytes(r.value) }, svg);
+          }
+        }
+        bindTip(rect, function () {
+          return { title: r.path, lines: [fmtBytes(r.value) + (r.lang ? ' · ' + r.lang : '')] };
+        });
+        void i;
+      });
+      $('treemap-sub').textContent = items.length + ' files · ' + fmtBytes(items.reduce(function (sm, it) { return sm + it.value; }, 0)) + ' mapped · area = size, color = language';
+    }
+
+    /* biggest files aside */
+    var aside = $('biggest-mount');
+    clear(aside);
+    h('h3', { text: 'Biggest files' }, aside);
+    var bf = biggestFiles.filter(function (f) { return f && num(f.bytes) > 0; }).slice(0, 6);
+    if (!bf.length) {
+      h('div', { 'class': 'sub', text: 'No files tracked yet.' }, aside);
+      return;
+    }
+    var maxB = Math.max.apply(null, bf.map(function (f) { return num(f.bytes); }).concat([1]));
+    bf.forEach(function (f) {
+      var path = str(f.path, '(unknown)');
+      var row = h('div', { 'class': 'big-row' }, aside);
+      var topEl = h('div', { 'class': 'big-top' }, row);
+      h('span', { 'class': 'big-name', text: path, title: path }, topEl);
+      h('span', { 'class': 'big-size', text: fmtBytes(f.bytes) }, topEl);
+      var track = h('div', { 'class': 'big-track' }, row);
+      var fill = h('div', { 'class': 'big-fill', 'data-w': clamp(num(f.bytes) / maxB * 100, 2, 100) + '%' }, track);
+      fill.style.background = safeColor(f.color, PALETTE[hashStr(str(f.lang)) % PALETTE.length]);
+      bindTip(row, function () {
+        return { title: path, lines: [fmtBytes(f.bytes) + (str(f.lang) ? ' · ' + str(f.lang) : '')] };
+      });
+    });
+    animateWidths(aside);
+  }
+
+  /* ================= boot ================= */
+  var sections = [
+    renderHero, renderKpis, renderHeatmap, renderPunch,
+    renderVelocity, renderContributors, renderHotspots, renderLanguages, renderTreemap
+  ];
+  sections.forEach(function (fn) {
+    try { fn(); }
+    catch (err) {
+      if (window.console) console.error('[GitVitals] section failed:', err);
+    }
+  });
+})();
+</script>
+</body>
+</html>
