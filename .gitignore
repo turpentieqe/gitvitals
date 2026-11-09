@@ -6,3 +6,4 @@ gitvitals-report.html
 *.log
 .DS_Store
 coverage/
+LAUNCH.md

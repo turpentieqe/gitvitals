@@ -18,6 +18,7 @@
   "scripts": {
     "start": "node bin/gitvitals.js",
     "demo": "node scripts/make-demo.mjs && node bin/gitvitals.js demo-app --out demo-report.html --no-open",
+    "gif": "node scripts/make-gif.mjs",
     "test": "node test/smoke.mjs"
   },
   "keywords": [

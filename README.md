@@ -20,7 +20,7 @@ npx gitvitals
 
 **[▶ Open the live demo](https://turpentieqe.github.io/gitvitals/demo.html)** — a real report, no install required.
 
-<img src="docs/demo.png" alt="GitVitals dashboard" width="100%">
+<img src="docs/demo.gif" alt="GitVitals dashboard — animated scroll-through" width="100%">
 
 </div>
 
@@ -134,14 +134,14 @@ Requires **Node.js ≥ 18** and **Git** on your PATH. No other dependencies.
 
 ## 🎬 Try the demo
 
-This repo ships with a generator that builds a realistic sample repository (≈350 commits, 6 contributors, 12+ languages) and renders a report:
+This repo ships with a generator that builds a realistic sample repository (≈500 commits, 6 contributors, multiple languages) and renders a report:
 
 ```bash
 npm run demo
-# → opens demo-report.html
+# → writes demo-report.html
 ```
 
-A pre-generated report lives at [`docs/demo.html`](docs/demo.html) — open it directly in any browser.
+A pre-generated report lives at [`docs/demo.html`](docs/demo.html) — open it directly in any browser. The animated hero GIF is reproducible with `npm run gif` (needs Chrome/Chromium; still zero dependencies).
 
 ## ⚙️ How it works
 
@@ -152,7 +152,7 @@ A pre-generated report lives at [`docs/demo.html`](docs/demo.html) — open it d
 
 ## 🗺 Roadmap
 
-- [ ] Animated demo GIF and hosted live demo (GitHub Pages)
+- [x] Animated demo GIF and hosted live demo (GitHub Pages)
 - [ ] `--compare` two refs / branches side by side
 - [ ] `--format json|html|md` and a CI badge endpoint
 - [ ] Per-author code ownership (blame-based) heatmap
